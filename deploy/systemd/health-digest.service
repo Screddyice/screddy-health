@@ -1,0 +1,15 @@
+[Unit]
+Description=Twice-weekly Apple Health narrative digest via Jarvis /chat
+After=network.target
+
+[Service]
+Type=oneshot
+# Adjust paths for your install. %h expands to the running user's home directory.
+EnvironmentFile=%h/jarvis-health/.env
+WorkingDirectory=%h/jarvis-health
+ExecStart=%h/.local/bin/uv run python -m jarvis.agents.health_digest
+StandardOutput=append:%h/logs/health-digest.log
+StandardError=append:%h/logs/health-digest.log
+
+[Install]
+WantedBy=default.target
