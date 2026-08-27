@@ -43,7 +43,7 @@ def test_main_came_back_sends_welcome_message_and_skips_patterns(tmp_path, monke
     """When transition is came_back, send welcome-back, skip pattern detection."""
     import respx
     from httpx import Response
-    from jarvis.agents import health_monitor as hm
+    from screddy.agents import health_monitor as hm
 
     # Fake JSONL log path
     log_path = tmp_path / "health-monitor.jsonl"
@@ -80,7 +80,7 @@ def test_main_anti_spam_suppresses_repeat_pattern(tmp_path, monkeypatch):
     """When same pattern fired (unsuppressed) yesterday, today's repeat is suppressed."""
     import respx
     from httpx import Response
-    from jarvis.agents import health_monitor as hm
+    from screddy.agents import health_monitor as hm
 
     log_path = tmp_path / "health-monitor.jsonl"
     monkeypatch.setattr(hm, "JSONL_LOG_PATH", log_path)
@@ -144,7 +144,7 @@ def test_main_sickness_pattern_alerts_via_telegram_and_email(tmp_path, monkeypat
     """
     import respx
     from httpx import Response
-    from jarvis.agents import health_monitor as hm
+    from screddy.agents import health_monitor as hm
 
     log_path = tmp_path / "health-monitor.jsonl"
     monkeypatch.setattr(hm, "JSONL_LOG_PATH", log_path)
@@ -153,7 +153,7 @@ def test_main_sickness_pattern_alerts_via_telegram_and_email(tmp_path, monkeypat
     emergency_state = tmp_path / "emergency.json"
     monkeypatch.setattr(hm, "EMERGENCY_STATE_PATH", emergency_state)
     # Set recipient explicitly so _send_sickness_email doesn't early-exit
-    # in test envs that don't have JARVIS_HEALTH_*_EMAIL_TO set.
+    # in test envs that don't have SCREDDY_HEALTH_*_EMAIL_TO set.
     monkeypatch.setattr(hm, "SICKNESS_EMAIL_TO", "test-recipient@example.com")
 
     cfg_path = tmp_path / "apple_health_remote.json"
@@ -224,7 +224,7 @@ def test_main_sickness_pattern_alerts_via_telegram_and_email(tmp_path, monkeypat
 
 def test_main_returns_2_and_logs_error_on_analyse_failure(tmp_path, monkeypatch):
     """When analyse() raises, main() logs _error to JSONL and returns 2."""
-    from jarvis.agents import health_monitor as hm
+    from screddy.agents import health_monitor as hm
 
     log_path = tmp_path / "health-monitor.jsonl"
     monkeypatch.setattr(hm, "JSONL_LOG_PATH", log_path)

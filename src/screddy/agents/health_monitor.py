@@ -12,16 +12,16 @@ import statistics
 from datetime import datetime, timezone
 from pathlib import Path
 
-from jarvis import brain
-from jarvis.agents._health import data_state, metric_fetch, patterns
-from jarvis.agents._health.metric_fetch import METRIC_REGISTRY
-from jarvis.channels import email_notify, telegram_notify
+from screddy import brain
+from screddy.agents._health import data_state, metric_fetch, patterns
+from screddy.agents._health.metric_fetch import METRIC_REGISTRY
+from screddy.channels import email_notify, telegram_notify
 
 logger = logging.getLogger(__name__)
 
 JSONL_LOG_PATH = Path(
     os.environ.get(
-        "JARVIS_HEALTH_JSONL_LOG_PATH",
+        "SCREDDY_HEALTH_JSONL_LOG_PATH",
         str(Path.home() / "logs" / "health-monitor.jsonl"),
     )
 )
@@ -29,23 +29,23 @@ LOOKBACK_DAYS = 30
 DISCLAIMER = (
     "_Pattern check, not a diagnosis. Talk to a clinician for medical concerns._"
 )
-# Emergency state lives inside Jarvis's own state directory — never under
-# ~/.openclaw, which belongs to a separate runtime. Jarvis owns its own data.
+# Emergency state lives inside Screddy's own state directory — never under
+# ~/.openclaw, which belongs to a separate runtime. Screddy owns its own data.
 EMERGENCY_STATE_PATH = Path(
-    os.environ.get("JARVIS_HEALTH_STATE_DIR", str(Path.home() / "jarvis" / "state"))
+    os.environ.get("SCREDDY_HEALTH_STATE_DIR", str(Path.home() / "screddy" / "state"))
 ) / "emergency.json"
 SICKNESS_STATE_PATH = Path(
-    os.environ.get("JARVIS_HEALTH_STATE_DIR", str(Path.home() / "jarvis" / "state"))
+    os.environ.get("SCREDDY_HEALTH_STATE_DIR", str(Path.home() / "screddy" / "state"))
 ) / "sickness.json"
-# Set JARVIS_HEALTH_EMERGENCY_EMAIL_TO (or fall back to a generic JARVIS_HEALTH_EMAIL_TO)
+# Set SCREDDY_HEALTH_EMERGENCY_EMAIL_TO (or fall back to a generic SCREDDY_HEALTH_EMAIL_TO)
 # to receive emergency-tier alerts via email in addition to Telegram. Sickness uses the
-# same address by default; override with JARVIS_HEALTH_SICKNESS_EMAIL_TO if desired.
+# same address by default; override with SCREDDY_HEALTH_SICKNESS_EMAIL_TO if desired.
 EMERGENCY_EMAIL_TO = os.environ.get(
-    "JARVIS_HEALTH_EMERGENCY_EMAIL_TO",
-    os.environ.get("JARVIS_HEALTH_EMAIL_TO", ""),
+    "SCREDDY_HEALTH_EMERGENCY_EMAIL_TO",
+    os.environ.get("SCREDDY_HEALTH_EMAIL_TO", ""),
 )
 SICKNESS_EMAIL_TO = os.environ.get(
-    "JARVIS_HEALTH_SICKNESS_EMAIL_TO",
+    "SCREDDY_HEALTH_SICKNESS_EMAIL_TO",
     EMERGENCY_EMAIL_TO,
 )
 WELCOME_BACK_TEMPLATE = (
@@ -58,7 +58,7 @@ WELCOME_BACK_TEMPLATE = (
 
 
 def _load_config() -> dict:
-    path = Path.home() / ".openjarvis" / "connectors" / "apple_health_remote.json"
+    path = Path.home() / ".openscreddy" / "connectors" / "apple_health_remote.json"
     return json.loads(path.read_text())
 
 
@@ -219,7 +219,7 @@ def analyse() -> tuple[dict, dict]:
 
 
 def ask_llm_for_message(findings: dict, fired_patterns: list[dict], data_state_block: dict) -> str:
-    """Render a Jarvis-toned Telegram message for the fired patterns.
+    """Render a Screddy-toned Telegram message for the fired patterns.
 
     When any pattern has severity=emergency, switches to the emergency framing:
     leads with 🚨, gives explicit care recommendation, and notes that real-time
@@ -227,8 +227,8 @@ def ask_llm_for_message(findings: dict, fired_patterns: list[dict], data_state_b
 
     Uses the OpenAI Python SDK (lazy-imported so the module loads without it).
     Install with `pip install openai` or `uv add openai` if you want this
-    pattern-alert rendering path. The digest path (jarvis.agents.health_digest)
-    uses jarvis_api_client.chat() instead and does NOT need openai installed.
+    pattern-alert rendering path. The digest path (screddy.agents.health_digest)
+    uses screddy_api_client.chat() instead and does NOT need openai installed.
     """
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -306,7 +306,7 @@ def ask_llm_for_message(findings: dict, fired_patterns: list[dict], data_state_b
         patterns_payload = fired_patterns
 
     prompt = (
-        "You are Jarvis, Shawn's AI butler. Tone: dry, confident, address him as 'sir', "
+        "You are Screddy, Shawn's AI butler. Tone: dry, confident, address him as 'sir', "
         "no filler. Health pattern detection just flagged the patterns below from his "
         "Apple Watch data.\n\n"
         f"{state_note}"
@@ -380,13 +380,13 @@ def _filter_tier_for_alert(
 def _send_emergency_email(message_body: str, fired_patterns: list[dict]) -> bool:
     """Mirror an emergency Telegram message to email as an archival/redundant
     channel. Falls back to no-op when no email recipient is configured
-    (JARVIS_HEALTH_EMERGENCY_EMAIL_TO / JARVIS_HEALTH_EMAIL_TO env vars)."""
+    (SCREDDY_HEALTH_EMERGENCY_EMAIL_TO / SCREDDY_HEALTH_EMAIL_TO env vars)."""
     if not fired_patterns or not EMERGENCY_EMAIL_TO:
         return False
     headlines = [p.get("headline", p.get("id", "?")) for p in fired_patterns]
-    subject = "[Jarvis] Health emergency-tier pattern: " + "; ".join(headlines[:2])
+    subject = "[Screddy] Health emergency-tier pattern: " + "; ".join(headlines[:2])
     body = (
-        "Jarvis flagged one or more emergency-tier patterns from your Apple Health data.\n\n"
+        "Screddy flagged one or more emergency-tier patterns from your Apple Health data.\n\n"
         "This is a retrospective pattern review, not a real-time alert (the Apple Watch "
         "handles real-time emergencies natively).\n\n"
         "Telegram message (also delivered):\n"
@@ -402,14 +402,14 @@ def _send_emergency_email(message_body: str, fired_patterns: list[dict]) -> bool
 def _send_sickness_email(message_body: str, fired_patterns: list[dict]) -> bool:
     """Mirror a sickness-tier Telegram message to email as an archival/redundant
     channel. Tone is rest/recovery focused, NOT emergency framing. Falls back
-    to no-op when no email recipient is configured (JARVIS_HEALTH_SICKNESS_EMAIL_TO
-    / JARVIS_HEALTH_EMERGENCY_EMAIL_TO / JARVIS_HEALTH_EMAIL_TO env vars)."""
+    to no-op when no email recipient is configured (SCREDDY_HEALTH_SICKNESS_EMAIL_TO
+    / SCREDDY_HEALTH_EMERGENCY_EMAIL_TO / SCREDDY_HEALTH_EMAIL_TO env vars)."""
     if not fired_patterns or not SICKNESS_EMAIL_TO:
         return False
     headlines = [p.get("headline", p.get("id", "?")) for p in fired_patterns]
-    subject = "[Jarvis] Early illness signal detected: " + "; ".join(headlines[:2])
+    subject = "[Screddy] Early illness signal detected: " + "; ".join(headlines[:2])
     body = (
-        "Jarvis flagged an early illness signal from your Apple Health data.\n\n"
+        "Screddy flagged an early illness signal from your Apple Health data.\n\n"
         "Multiple vital markers are drifting in the direction that typically\n"
         "precedes illness onset by 1-3 days. This is a pattern-based heads-up,\n"
         "not a diagnosis or an emergency — real-time emergencies are handled\n"
@@ -468,7 +468,7 @@ def main() -> int:
     findings["_patterns"] = fired
     _log_findings(findings)
 
-    # Sync today's per-metric values into the Jarvis brain (Postgres).
+    # Sync today's per-metric values into the Screddy brain (Postgres).
     try:
         run_at_dt = datetime.fromisoformat(findings["_run_at"].replace("Z", "+00:00"))
     except (KeyError, ValueError):

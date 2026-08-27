@@ -6,7 +6,7 @@ import json
 
 def test_main_delivers_telegram_on_tuesday(tmp_path, monkeypatch):
     """Tuesday run with a populated JSONL log dispatches a Telegram message."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({
@@ -38,7 +38,7 @@ def test_main_delivers_telegram_on_tuesday(tmp_path, monkeypatch):
 
 def test_main_returns_zero_on_non_digest_day(tmp_path, monkeypatch):
     """When weekday is not Tue/Sun, exit 0 and send nothing."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({"_run_at": "2026-05-20T18:00:00Z"}) + "\n")
@@ -55,7 +55,7 @@ def test_main_returns_zero_on_non_digest_day(tmp_path, monkeypatch):
 
 def test_main_handles_empty_jsonl(tmp_path, monkeypatch):
     """Empty JSONL on a digest day still dispatches a short notice."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"  # never written
     monkeypatch.setattr(hd, "JSONL_LOG_PATH", log_path)
@@ -75,7 +75,7 @@ def test_main_handles_empty_jsonl(tmp_path, monkeypatch):
 
 def test_main_returns_one_when_telegram_fails(tmp_path, monkeypatch):
     """Telegram delivery failure surfaces as exit 1."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({"_run_at": "2026-05-19T18:00:00Z"}) + "\n")
@@ -91,7 +91,7 @@ def test_main_returns_one_when_telegram_fails(tmp_path, monkeypatch):
 def test_main_sends_fallback_when_chat_returns_none(tmp_path, monkeypatch):
     """When weekly_digest.run() returns None on a digest day (chat failed
     or empty response), send a short fallback Telegram so the user knows."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({"_run_at": "2026-05-19T18:00:00Z"}) + "\n")

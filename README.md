@@ -1,6 +1,6 @@
-# jarvis-health
+# screddy-health
 
-Apple Health digest engine — twice-weekly narrative briefings, early-warning sickness detection, and edge-triggered emergency alerts. Extracted from a personal Jarvis system, generalized for anyone running [Health Auto Export](https://www.healthyapps.dev/health-auto-export) + a Telegram bot.
+Apple Health digest engine — twice-weekly narrative briefings, early-warning sickness detection, and edge-triggered emergency alerts. Extracted from a personal Screddy system, generalized for anyone running [Health Auto Export](https://www.healthyapps.dev/health-auto-export) + a Telegram bot.
 
 ## What it does
 
@@ -28,7 +28,7 @@ You set up the [Health Auto Export](https://www.healthyapps.dev/health-auto-expo
                                       │  HTTPS pull (with token)
                                       ▼
                     ┌────────────────────────────────────┐
-                    │  jarvis.agents.health_monitor      │  daily timer
+                    │  screddy.agents.health_monitor      │  daily timer
                     │  ─ pulls last 30d per metric       │
                     │  ─ z-scores against baseline       │
                     │  ─ runs 17 pattern detectors       │
@@ -45,7 +45,7 @@ You set up the [Health Auto Export](https://www.healthyapps.dev/health-auto-expo
               └──────────────────┘       └──────────────────┘
 
                     ┌────────────────────────────────────┐
-                    │  jarvis.agents.health_digest       │  Tue 12:00 +
+                    │  screddy.agents.health_digest       │  Tue 12:00 +
                     │  ─ reads last 30d JSONL            │   Sun 16:00
                     │  ─ pulls journal entries (opt'l)   │   timers
                     │  ─ assembles prompt + glossary     │
@@ -62,13 +62,13 @@ You set up the [Health Auto Export](https://www.healthyapps.dev/health-auto-expo
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 - The [Health Auto Export](https://www.healthyapps.dev/health-auto-export) iPhone app, plus their [server companion](https://github.com/HealthyApps/health-auto-export-server) running somewhere you control. The companion exposes a REST API your install will pull from. See `services/health-auto-export/README.md` for the setup walkthrough.
 - A Telegram bot ([create one with @BotFather](https://core.telegram.org/bots#how-do-i-create-a-bot)) and the chat ID you want digests delivered to.
-- An LLM endpoint that accepts `POST {url}/chat` with `{"message": "..."}` and returns `{"answer": "..."}` JSON. The included client (`jarvis_api_client.py`) targets `http://127.0.0.1:8200/chat` by default — point it at OpenAI, Claude, a local llama.cpp, an openclaw agent, or any compatible wrapper.
+- An LLM endpoint that accepts `POST {url}/chat` with `{"message": "..."}` and returns `{"answer": "..."}` JSON. The included client (`screddy_api_client.py`) targets `http://127.0.0.1:8200/chat` by default — point it at OpenAI, Claude, a local llama.cpp, an openclaw agent, or any compatible wrapper.
 
 ### Install
 
 ```bash
-git clone https://github.com/Screddyice/jarvis-health
-cd jarvis-health
+git clone https://github.com/Screddyice/screddy-health
+cd screddy-health
 uv sync
 ```
 
@@ -86,34 +86,34 @@ TELEGRAM_BOT_TOKEN=123456:ABCdefGHI
 TELEGRAM_CHAT_ID=987654321
 
 # LLM endpoint for digest generation
-JARVIS_API_URL=http://127.0.0.1:8200/chat
-JARVIS_API_TOKEN=your-bearer-token
+SCREDDY_API_URL=http://127.0.0.1:8200/chat
+SCREDDY_API_TOKEN=your-bearer-token
 
 # Optional — email mirror for sickness + emergency alerts
-JARVIS_HEALTH_EMAIL_TO=you@example.com
+SCREDDY_HEALTH_EMAIL_TO=you@example.com
 
 # Optional — Postgres for durable journal + metrics history
 DATABASE_URL=postgresql://user:pass@host/db
 
 # Optional — override paths and timezone
-JARVIS_HEALTH_JSONL_LOG_PATH=~/logs/health-monitor.jsonl
-JARVIS_HEALTH_STATE_DIR=~/jarvis-health/state
-JARVIS_HEALTH_TZ=America/Los_Angeles
+SCREDDY_HEALTH_JSONL_LOG_PATH=~/logs/health-monitor.jsonl
+SCREDDY_HEALTH_STATE_DIR=~/screddy-health/state
+SCREDDY_HEALTH_TZ=America/Los_Angeles
 ```
 
 ### Run it manually
 
 ```bash
 # Daily watchdog: analyse, write JSONL, edge-trigger alerts
-uv run python -m jarvis.agents.health_monitor
+uv run python -m screddy.agents.health_monitor
 
 # Twice-weekly digest: read JSONL, assemble prompt, deliver narrative
-uv run python -m jarvis.agents.health_digest
+uv run python -m screddy.agents.health_digest
 ```
 
 ### Schedule via systemd
 
-Templates live in `deploy/systemd/`. They use `%h` substitution so they work for any user as long as the repo is at `~/jarvis-health/`:
+Templates live in `deploy/systemd/`. They use `%h` substitution so they work for any user as long as the repo is at `~/screddy-health/`:
 
 ```bash
 cp deploy/systemd/*.{service,timer} ~/.config/systemd/user/
@@ -152,7 +152,7 @@ Emergency- and sickness-tier patterns bypass the 3-day anti-spam cooldown that s
 ## Layout
 
 ```
-src/jarvis/
+src/screddy/
 ├── agents/
 │   ├── health_monitor.py      ← daily watchdog entry point
 │   ├── health_digest.py       ← Tue/Sun digest entry point
@@ -163,7 +163,7 @@ src/jarvis/
 │       ├── data_state.py      ← watch on/off/partial classifier
 │       ├── glossary.py        ← metric definitions for the LLM
 │       ├── weekly_digest.py   ← prompt assembly + LLM dispatch
-│       └── jarvis_api_client.py ← HTTP client for the chat endpoint
+│       └── screddy_api_client.py ← HTTP client for the chat endpoint
 ├── channels/
 │   ├── telegram_notify.py     ← Telegram delivery
 │   └── email_notify.py        ← Composio Gmail delivery (optional)
@@ -185,14 +185,14 @@ tests/                         ← pytest suite (124 tests)
 | `APPLE_HEALTH_REMOTE_READ_TOKEN` | Yes | — | HAE read API token |
 | `TELEGRAM_BOT_TOKEN` | Yes | — | Telegram bot token (BotFather) |
 | `TELEGRAM_CHAT_ID` | Yes | — | Numeric chat ID for digest delivery |
-| `JARVIS_API_URL` | Yes | `http://127.0.0.1:8200/chat` | LLM endpoint for digest |
-| `JARVIS_API_TOKEN` | Yes | — | Bearer token for the LLM endpoint |
-| `JARVIS_HEALTH_EMAIL_TO` | No | unset | Email recipient for sickness + emergency mirrors |
-| `JARVIS_HEALTH_EMERGENCY_EMAIL_TO` | No | falls back to `JARVIS_HEALTH_EMAIL_TO` | Override emergency-only recipient |
-| `JARVIS_HEALTH_SICKNESS_EMAIL_TO` | No | falls back to `JARVIS_HEALTH_EMERGENCY_EMAIL_TO` | Override sickness-only recipient |
-| `JARVIS_HEALTH_JSONL_LOG_PATH` | No | `~/logs/health-monitor.jsonl` | Where the audit log is written |
-| `JARVIS_HEALTH_STATE_DIR` | No | `~/jarvis/state` | Where edge-trigger state files live |
-| `JARVIS_HEALTH_TZ` | No | `America/Los_Angeles` | Timezone for digest weekday gating |
+| `SCREDDY_API_URL` | Yes | `http://127.0.0.1:8200/chat` | LLM endpoint for digest |
+| `SCREDDY_API_TOKEN` | Yes | — | Bearer token for the LLM endpoint |
+| `SCREDDY_HEALTH_EMAIL_TO` | No | unset | Email recipient for sickness + emergency mirrors |
+| `SCREDDY_HEALTH_EMERGENCY_EMAIL_TO` | No | falls back to `SCREDDY_HEALTH_EMAIL_TO` | Override emergency-only recipient |
+| `SCREDDY_HEALTH_SICKNESS_EMAIL_TO` | No | falls back to `SCREDDY_HEALTH_EMERGENCY_EMAIL_TO` | Override sickness-only recipient |
+| `SCREDDY_HEALTH_JSONL_LOG_PATH` | No | `~/logs/health-monitor.jsonl` | Where the audit log is written |
+| `SCREDDY_HEALTH_STATE_DIR` | No | `~/screddy/state` | Where edge-trigger state files live |
+| `SCREDDY_HEALTH_TZ` | No | `America/Los_Angeles` | Timezone for digest weekday gating |
 | `DATABASE_URL` | No | unset (graceful no-op) | Postgres for durable history + journal reads |
 
 ## Design docs
@@ -202,7 +202,7 @@ The full design spec and implementation plan are in `docs/`:
 - [`docs/health-digest-design.md`](docs/health-digest-design.md) — the engineering spec covering schedule, pattern detectors, LLM prompt structure, urgent alert framing, sickness detection, watch-state handling.
 - [`docs/health-digest-plan.md`](docs/health-digest-plan.md) — the task-by-task implementation plan that was executed by Claude Code's [Superpowers](https://github.com/garrytan/gstack) workflow.
 
-These were originally written for the author's private Jarvis system. They're preserved verbatim because the engineering process (design → plan → review → ship) is the actually interesting bit; the deployment-specific references are explained in provenance banners.
+These were originally written for the author's private Screddy system. They're preserved verbatim because the engineering process (design → plan → review → ship) is the actually interesting bit; the deployment-specific references are explained in provenance banners.
 
 ## Tests
 

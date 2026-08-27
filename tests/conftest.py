@@ -1,4 +1,4 @@
-"""Shared test fixtures for jarvis tests.
+"""Shared test fixtures for screddy tests.
 
 All tests are pure-Python with mocked HAE / Telegram / OpenAI — no network.
 """

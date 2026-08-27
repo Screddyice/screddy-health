@@ -1,12 +1,12 @@
-"""Thin HTTP client for Jarvis's local /chat endpoint.
+"""Thin HTTP client for Screddy's local /chat endpoint.
 
-The digest pipeline routes ALL narrative generation through Jarvis itself
-(http://127.0.0.1:8200/chat → openclaw "jarvis" agent, GPT-5.4 + tools)
+The digest pipeline routes ALL narrative generation through Screddy itself
+(http://127.0.0.1:8200/chat → openclaw "screddy" agent, GPT-5.4 + tools)
 rather than instantiating its own OpenAI client. This keeps the digest's
 voice consistent with the user's voice/chat surface and lets the digest
 benefit from any tool access the agent has.
 
-Auth: JARVIS_API_TOKEN env var is sent as `Authorization: Bearer <token>`.
+Auth: SCREDDY_API_TOKEN env var is sent as `Authorization: Bearer <token>`.
 """
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from typing import Optional
 
 import httpx
 
-JARVIS_API_URL = "http://127.0.0.1:8200/chat"
+SCREDDY_API_URL = "http://127.0.0.1:8200/chat"
 DEFAULT_TIMEOUT_S = 120.0
 
 
-class JarvisApiError(RuntimeError):
-    """Raised when the Jarvis API call fails (network, non-200, missing creds)."""
+class ScreddyApiError(RuntimeError):
+    """Raised when the Screddy API call fails (network, non-200, missing creds)."""
 
 
 def chat(
@@ -28,21 +28,21 @@ def chat(
     *,
     session_id: Optional[str] = None,
     timeout_s: float = DEFAULT_TIMEOUT_S,
-    url: str = JARVIS_API_URL,
+    url: str = SCREDDY_API_URL,
 ) -> str:
-    """POST `message` to Jarvis /chat and return the answer string.
+    """POST `message` to Screddy /chat and return the answer string.
 
-    Raises JarvisApiError on:
-      - Missing JARVIS_API_TOKEN env var
+    Raises ScreddyApiError on:
+      - Missing SCREDDY_API_TOKEN env var
       - Network / transport error (timeout, connection refused)
       - Non-200 response
       - Missing `answer` field in the response body
     """
-    token = os.environ.get("JARVIS_API_TOKEN")
+    token = os.environ.get("SCREDDY_API_TOKEN")
     if not token:
-        raise JarvisApiError(
-            "JARVIS_API_TOKEN is not set; cannot call Jarvis /chat. "
-            "Source ~/jarvis/config/jarvis.env or set the env var."
+        raise ScreddyApiError(
+            "SCREDDY_API_TOKEN is not set; cannot call Screddy /chat. "
+            "Source ~/screddy/config/screddy.env or set the env var."
         )
 
     payload: dict[str, str] = {"message": message}
@@ -57,22 +57,22 @@ def chat(
             timeout=timeout_s,
         )
     except httpx.HTTPError as exc:
-        raise JarvisApiError(f"Jarvis /chat transport error: {exc}") from exc
+        raise ScreddyApiError(f"Screddy /chat transport error: {exc}") from exc
 
     if resp.status_code != 200:
         snippet = resp.text[:200].replace("\n", " ")
-        raise JarvisApiError(
-            f"Jarvis /chat returned {resp.status_code}: {snippet}"
+        raise ScreddyApiError(
+            f"Screddy /chat returned {resp.status_code}: {snippet}"
         )
 
     try:
         data = resp.json()
     except ValueError as exc:
-        raise JarvisApiError(f"Jarvis /chat returned non-JSON: {exc}") from exc
+        raise ScreddyApiError(f"Screddy /chat returned non-JSON: {exc}") from exc
 
     answer = data.get("answer")
     if not isinstance(answer, str):
-        raise JarvisApiError(
-            f"Jarvis /chat response missing 'answer' string field: {data}"
+        raise ScreddyApiError(
+            f"Screddy /chat response missing 'answer' string field: {data}"
         )
     return answer

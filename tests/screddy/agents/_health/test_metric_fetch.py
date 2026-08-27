@@ -38,14 +38,14 @@ V3_METRIC_IDS = {
 
 
 def test_metric_registry_includes_all_v2_metrics():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     registry_ids = {entry.id for entry in m.METRIC_REGISTRY}
     assert V2_METRIC_IDS.issubset(registry_ids)
 
 
 def test_metric_registry_includes_all_v3_metrics():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     registry_ids = {entry.id for entry in m.METRIC_REGISTRY}
     assert V3_METRIC_IDS.issubset(registry_ids)
@@ -53,7 +53,7 @@ def test_metric_registry_includes_all_v3_metrics():
 
 def test_metric_registry_freshness_thresholds():
     """Vitals 24h, sleep-derived 36h, vo2_max 8 days, cardiac events 30 days."""
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     by_id = {e.id: e for e in m.METRIC_REGISTRY}
     assert by_id["resting_heart_rate"].freshness_hours == 24
@@ -64,7 +64,7 @@ def test_metric_registry_freshness_thresholds():
 
 def test_metric_registry_watch_required_flags():
     """step_count + gait + several v3 metrics are iPhone-derived; rest need watch."""
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     by_id = {e.id: e for e in m.METRIC_REGISTRY}
     iphone_only = {
@@ -82,7 +82,7 @@ def test_metric_registry_watch_required_flags():
 
 @respx.mock
 def test_fetch_metric_calls_hae_with_start_end_params():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     route = respx.get("https://hae.example.test/api/metrics/step_count").mock(
         return_value=Response(200, json=[{"date": "2026-05-10T08:00:00Z", "qty": 100}])
@@ -103,7 +103,7 @@ def test_fetch_metric_calls_hae_with_start_end_params():
 
 
 def test_aggregate_daily_sum():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     rows = [
         {"date": "2026-05-10T08:00:00Z", "qty": 100},
@@ -115,7 +115,7 @@ def test_aggregate_daily_sum():
 
 
 def test_aggregate_daily_avg():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     rows = [
         {"date": "2026-05-10T08:00:00Z", "qty": 60},
@@ -125,7 +125,7 @@ def test_aggregate_daily_avg():
 
 
 def test_aggregate_daily_last():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     rows = [
         {"date": "2026-04-25T04:11:00Z", "qty": 42.0},
@@ -137,7 +137,7 @@ def test_aggregate_daily_last():
 
 
 def test_aggregate_daily_skips_rows_without_qty_or_date():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     rows = [
         {"date": "2026-05-10T08:00:00Z", "qty": 100},
@@ -149,7 +149,7 @@ def test_aggregate_daily_skips_rows_without_qty_or_date():
 
 
 def test_per_metric_finding_computes_zscore_and_trend():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     # 30 days of data with a recent spike
     daily = {f"2026-04-{d:02d}": 50.0 for d in range(11, 31)}
@@ -168,7 +168,7 @@ def test_per_metric_finding_computes_zscore_and_trend():
 
 
 def test_per_metric_finding_marks_stale_when_no_recent_data():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     # All data older than 24 hours (use 2026-04-01..2026-04-02)
     daily = {"2026-04-01": 50.0, "2026-04-02": 55.0}
@@ -177,7 +177,7 @@ def test_per_metric_finding_marks_stale_when_no_recent_data():
 
 
 def test_per_metric_finding_excludes_gap_days_from_baseline():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     # Build a baseline of stable 50s then a 5-day "gap" of fake zero values
     # then 3 fresh days. Without exclude, the zeros poison the baseline.
@@ -195,7 +195,7 @@ def test_per_metric_finding_excludes_gap_days_from_baseline():
 
 
 def test_per_metric_finding_insufficient_data():
-    from jarvis.agents._health import metric_fetch as m
+    from screddy.agents._health import metric_fetch as m
 
     daily = {"2026-05-10": 50.0, "2026-05-11": 55.0}  # only 2 days
     finding = m.per_metric_finding(daily, exclude_days=set())

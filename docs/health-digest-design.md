@@ -1,8 +1,8 @@
 # Health Digest v3.2 — Design Spec
 
-> **Provenance:** This spec was written for the author's personal Jarvis
+> **Provenance:** This spec was written for the author's personal Screddy
 > deployment on an AWS EC2 instance referred to as `neb-server`. Path
-> references like `/home/ubuntu/jarvis/`, deployment identifiers, and
+> references like `/home/ubuntu/screddy/`, deployment identifiers, and
 > contact emails reflect that original context. The code published in
 > this repository has been generalized — paths, recipients, and
 > timezones are configurable via environment variables (see the project
@@ -11,14 +11,14 @@
 > install.
 
 **Date:** 2026-05-21
-**Implementation target:** `~/jarvis/` on the author's server (referred to as `neb-server` throughout)
+**Implementation target:** `~/screddy/` on the author's server (referred to as `neb-server` throughout)
 **Branch:** `feat/be-health-digest-v3-2`
 
 ---
 
 ## Goal
 
-Evolve the existing health-monitor (v2 / v3.1) on neb-server into a twice-weekly *health digest* delivered Tuesdays at 12:00 PT and Sundays at 16:00 PT. The digest synthesizes the past week of Apple Health metrics and journal entries into a narrative briefing that names patterns, gives concrete recommendations, and cites specific numbers and journal phrases. Route all narrative generation through the existing Jarvis API (`POST /chat` → openclaw "jarvis" agent, GPT-5.4) so the digest speaks in the same voice as voice/chat.
+Evolve the existing health-monitor (v2 / v3.1) on neb-server into a twice-weekly *health digest* delivered Tuesdays at 12:00 PT and Sundays at 16:00 PT. The digest synthesizes the past week of Apple Health metrics and journal entries into a narrative briefing that names patterns, gives concrete recommendations, and cites specific numbers and journal phrases. Route all narrative generation through the existing Screddy API (`POST /chat` → openclaw "screddy" agent, GPT-5.4) so the digest speaks in the same voice as voice/chat.
 
 In parallel, simplify the urgent-monitor path: collapse the every-3h emergency check into a once-daily morning watchdog, matching the cadence at which Apple Health data actually refreshes. Preserve the existing edge-triggered emergency-tier alerts (cardiac, severe respiratory, systemic inflammation) with their "If symptomatic now / If asymptomatic" doctor-contact framing.
 
@@ -30,14 +30,14 @@ The v2 / v3.1 system already on neb-server does most of what is needed:
 - Watch-on/off state classification, gap-day counting, post-resume baseline rebuild window
 - 3-day anti-spam cooldown
 - JSONL audit log at `/home/ubuntu/logs/health-monitor.jsonl`
-- Edge-triggered emergency alerts via `~/jarvis/state/emergency.json`, mirrored to email
+- Edge-triggered emergency alerts via `~/screddy/state/emergency.json`, mirrored to email
 - Sunday-only journal-aware LLM briefing in `_health/retrospective.py`, pulling entries via `brain.load_recent_mental_health_entries()`
 
 What is missing relative to the new ask:
 
 1. Tuesday delivery cadence (currently Sunday only)
 2. Sunday delivery at 16:00 PT (currently 12:00 UTC = 05:00 PT)
-3. LLM routed through Jarvis itself, not a direct `OpenAI()` instantiation
+3. LLM routed through Screddy itself, not a direct `OpenAI()` instantiation
 4. Metric glossary (definitions, baselines, concerning ranges) included so digest text is self-explanatory
 5. Once-daily morning watchdog instead of every-3h emergency check (data only refreshes once a day)
 
@@ -59,7 +59,7 @@ What is missing relative to the new ask:
 │                              │                                         │
 │                              ▼                                         │
 │           ┌────────────────────────────────────┐                       │
-│           │  jarvis.agents.health_monitor      │                       │
+│           │  screddy.agents.health_monitor      │                       │
 │           │  - analyse() (16 patterns)         │                       │
 │           │  - write JSONL                     │                       │
 │           │  - brain.write_health_metrics()    │                       │
@@ -73,10 +73,10 @@ What is missing relative to the new ask:
 │                              │                                         │
 │                              ▼                                         │
 │           ┌────────────────────────────────────┐                       │
-│           │  jarvis.agents.health_digest       │                       │
+│           │  screddy.agents.health_digest       │                       │
 │           │  - load last 7d JSONL + journal    │                       │
 │           │  - inject glossary                 │                       │
-│           │  - POST 127.0.0.1:8200/chat        │  → openclaw jarvis    │
+│           │  - POST 127.0.0.1:8200/chat        │  → openclaw screddy    │
 │           │  - deliver via telegram_notify     │     (GPT-5.4 + tools) │
 │           └────────────────────────────────────┘                       │
 └────────────────────────────────────────────────────────────────────────┘
@@ -85,7 +85,7 @@ What is missing relative to the new ask:
 ### File layout (post-change)
 
 ```
-src/jarvis/agents/
+src/screddy/agents/
   health_monitor.py             # daily watchdog (modified — retro block removed)
   health_digest.py              # NEW — twice-weekly digest entry point
   emergency_check.py            # DELETED
@@ -95,7 +95,7 @@ src/jarvis/agents/
     data_state.py               # unchanged
     patterns.py                 # unchanged
     weekly_digest.py            # RENAMED from retrospective.py + generalized day gate
-    jarvis_api_client.py        # NEW — HTTP client for Jarvis API /chat
+    screddy_api_client.py        # NEW — HTTP client for Screddy API /chat
     glossary.py                 # NEW — canonical metric definitions
 deploy/neb/systemd/
   health-monitor.timer          # MODIFIED — daily 06:30 LA
@@ -104,9 +104,9 @@ deploy/neb/systemd/
   health-digest.service         # NEW
   health-emergency-check.timer  # DELETED
   health-emergency-check.service # DELETED
-tests/jarvis/agents/
+tests/screddy/agents/
   test_health_monitor.py        # MODIFIED — retro tests moved out
-  test_weekly_digest.py         # NEW — Tue/Sun gate + glossary + Jarvis client mock
+  test_weekly_digest.py         # NEW — Tue/Sun gate + glossary + Screddy client mock
   test_health_digest.py         # NEW — entry-point integration
 ```
 
@@ -135,11 +135,11 @@ Existing logic is largely preserved. Three changes:
 
 3. **Glossary injection** — the prompt receives a new `glossary_block` parameter (formatted from `glossary.py`) listing the definition + baseline + concerning ranges for every metric mentioned in `todays_findings`. Instruction added to the prompt: "When you cite a metric value, also briefly state what it means and what a healthy range looks like, drawing from the glossary block below."
 
-LLM call site changes from `llm_client.chat.completions.create(model="gpt-4o-mini", ...)` to `jarvis_api_client.chat(message=prompt, timeout_s=120)`.
+LLM call site changes from `llm_client.chat.completions.create(model="gpt-4o-mini", ...)` to `screddy_api_client.chat(message=prompt, timeout_s=120)`.
 
-### `_health/jarvis_api_client.py` (new)
+### `_health/screddy_api_client.py` (new)
 
-Thin HTTP wrapper around the Jarvis API:
+Thin HTTP wrapper around the Screddy API:
 
 ```python
 def chat(message: str, *, session_id: str | None = None, timeout_s: int = 120) -> str:
@@ -147,7 +147,7 @@ def chat(message: str, *, session_id: str | None = None, timeout_s: int = 120) -
     Raises on non-200 or transport error."""
 ```
 
-Authorization: reads `JARVIS_API_TOKEN` from environment (already present in `~/jarvis/config/jarvis.env`). Returns the `"answer"` field from the JSON response. Honors a 120s timeout — openclaw subprocess calls typically complete in 15-30s, 120s gives generous headroom for tool-augmented runs.
+Authorization: reads `SCREDDY_API_TOKEN` from environment (already present in `~/screddy/config/screddy.env`). Returns the `"answer"` field from the JSON response. Honors a 120s timeout — openclaw subprocess calls typically complete in 15-30s, 120s gives generous headroom for tool-augmented runs.
 
 No retry logic in the client itself. Caller decides retry behavior; for the daily digest, one failed attempt is acceptable — next scheduled run is in 3-4 days. Failures log a structured warning to `~/logs/health-digest.log` and exit non-zero so systemd records the failure.
 
@@ -205,7 +205,7 @@ def main() -> int:
     return 0 if ok else 1
 ```
 
-`weekly_digest.run()` no longer takes an `llm_client` argument — it pulls the client internally from `jarvis_api_client`. This decouples the digest function from any specific LLM SDK.
+`weekly_digest.run()` no longer takes an `llm_client` argument — it pulls the client internally from `screddy_api_client`. This decouples the digest function from any specific LLM SDK.
 
 ### `agents/health_monitor.py` (modified)
 
@@ -227,7 +227,7 @@ This module exists only to support the 3h timer. With the timer collapsed into t
 
 ```ini
 [Unit]
-Description=Daily Jarvis health watchdog — Apple Health analysis + emergency edge-trigger
+Description=Daily Screddy health watchdog — Apple Health analysis + emergency edge-trigger
 Requires=health-monitor.service
 
 [Timer]
@@ -242,7 +242,7 @@ WantedBy=timers.target
 
 ```ini
 [Unit]
-Description=Twice-weekly Jarvis health digest — Tue 12:00 + Sun 16:00 PT
+Description=Twice-weekly Screddy health digest — Tue 12:00 + Sun 16:00 PT
 Requires=health-digest.service
 
 [Timer]
@@ -258,15 +258,15 @@ WantedBy=timers.target
 
 ```ini
 [Unit]
-Description=Jarvis health digest — narrative briefing via Jarvis /chat
-After=network.target jarvis-api.service
-Requires=jarvis-api.service
+Description=Screddy health digest — narrative briefing via Screddy /chat
+After=network.target screddy-api.service
+Requires=screddy-api.service
 
 [Service]
 Type=oneshot
-EnvironmentFile=/home/ubuntu/jarvis/config/jarvis.env
-WorkingDirectory=/home/ubuntu/jarvis/vendor/openjarvis
-ExecStart=/home/ubuntu/.local/bin/uv run python -m jarvis.agents.health_digest
+EnvironmentFile=/home/ubuntu/screddy/config/screddy.env
+WorkingDirectory=/home/ubuntu/screddy/vendor/openscreddy
+ExecStart=/home/ubuntu/.local/bin/uv run python -m screddy.agents.health_digest
 StandardOutput=append:/home/ubuntu/logs/health-digest.log
 StandardError=append:/home/ubuntu/logs/health-digest.log
 
@@ -274,7 +274,7 @@ StandardError=append:/home/ubuntu/logs/health-digest.log
 WantedBy=default.target
 ```
 
-`Requires=jarvis-api.service` ensures the API is up before the digest tries to call it. If the API is down, the digest service exits with a failure that systemd records.
+`Requires=screddy-api.service` ensures the API is up before the digest tries to call it. If the API is down, the digest service exits with a failure that systemd records.
 
 **`deploy/neb/systemd/health-emergency-check.{service,timer}`** — delete.
 
@@ -326,9 +326,9 @@ Sickness ranks above high (warrants user attention NOW, not just in the next dig
 ### Routing
 
 Sickness patterns route through the same notification pipeline as emergency-tier:
-- Edge-triggered via a NEW state file `~/jarvis/state/sickness.json` (mirrors the existing `emergency.json` structure). Persistent sickness patterns alert once on transition from inactive → active, stay silent on subsequent runs, re-fire when the pattern clears and re-activates.
+- Edge-triggered via a NEW state file `~/screddy/state/sickness.json` (mirrors the existing `emergency.json` structure). Persistent sickness patterns alert once on transition from inactive → active, stay silent on subsequent runs, re-fire when the pattern clears and re-activates.
 - Telegram delivery via the same daily 11:00 PT watchdog
-- Email mirror to `<your-configured-email>` (subject: `[Jarvis] Early illness signal detected: <headline>` — distinct from emergency subject)
+- Email mirror to `<your-configured-email>` (subject: `[Screddy] Early illness signal detected: <headline>` — distinct from emergency subject)
 
 ### LLM framing (sickness-specific branch in `ask_llm_for_message`)
 
@@ -370,10 +370,10 @@ No changes to the emergency framing or detection logic in this spec.
 
 | Failure mode | Behavior |
 |---|---|
-| Jarvis API returns non-200 | `jarvis_api_client.chat()` raises; `health_digest.main()` logs the error, sends a fallback Telegram message ("Digest skipped — Jarvis API returned <status>. Recheck at next scheduled fire."), returns exit 1. |
-| Jarvis API timeout (>120s) | Same as above with the message naming "timeout". |
+| Screddy API returns non-200 | `screddy_api_client.chat()` raises; `health_digest.main()` logs the error, sends a fallback Telegram message ("Digest skipped — Screddy API returned <status>. Recheck at next scheduled fire."), returns exit 1. |
+| Screddy API timeout (>120s) | Same as above with the message naming "timeout". |
 | Empty JSONL log | `health_digest.main()` sends a short Telegram noting "no health data in window — taking the day off". Exit 0. |
-| Missing JARVIS_API_TOKEN | Exit 2, no message sent (config error, systemd surfaces). |
+| Missing SCREDDY_API_TOKEN | Exit 2, no message sent (config error, systemd surfaces). |
 | Telegram send fails | Exit 1, error logged. JSONL is not the right place to log digest delivery failures — that lives in `~/logs/health-digest.log`. |
 
 The daily watchdog's error handling is unchanged from today.
@@ -382,19 +382,19 @@ The daily watchdog's error handling is unchanged from today.
 
 | Module | Test cases |
 |---|---|
-| `_health/jarvis_api_client.py` | Mock httpx: 200 returns the answer; non-200 raises with status in message; timeout raises; missing token raises clearly. |
+| `_health/screddy_api_client.py` | Mock httpx: 200 returns the answer; non-200 raises with status in message; timeout raises; missing token raises clearly. |
 | `_health/weekly_digest.py` | Day gate accepts Tue + Sun only; rejects other days. Tue headline + framing differs from Sun. Glossary block present in prompt when findings have metrics with glossary entries. Sparse journal (<2 entries) triggers fallback wording. |
 | `_health/glossary.py` | `format_for_prompt(findings)` includes only metrics that exist in both findings AND the glossary; ignores `_`-prefixed keys; output is non-empty when at least one match exists. |
 | `agents/health_digest.py` | Mock weekly_digest + telegram_notify: success path delivers message + disclaimer; empty JSONL path sends short notice; API failure path sends fallback notice and exits 1. |
 | `agents/health_monitor.py` | Existing tests, plus: remove the retrospective integration test that's now obsolete; add a check that the Sunday code path no longer invokes retrospective from this module. |
 
-Mock the Jarvis API and Telegram at the HTTP boundary — no real network calls.
+Mock the Screddy API and Telegram at the HTTP boundary — no real network calls.
 
 ## Deployment / migration
 
 Order of operations on neb-server (after merge):
 
-1. `cd ~/jarvis && git pull`
+1. `cd ~/screddy && git pull`
 2. `uv sync` (no new deps expected; httpx is already pulled in)
 3. `systemctl --user daemon-reload`
 4. `systemctl --user stop health-emergency-check.timer health-emergency-check.service`
@@ -416,10 +416,10 @@ A manual smoke test before the next scheduled fire: `systemctl --user start heal
 - Daily 11:00 PT watchdog continues to silently update JSONL + brain; emergency edge-trigger still fires Telegram + email when a new emergency-tier pattern appears.
 - Watch-off / post-resume rebuild gating still works — verified by inspecting `_data_state` blocks in JSONL across a watch-off → watch-on cycle.
 - No active references to `emergency_check.py` or `health-emergency-check.{timer,service}` remain. Old systemd units are gone from `~/.config/systemd/user/`.
-- All new tests pass under `uv run pytest tests/jarvis/agents/`.
+- All new tests pass under `uv run pytest tests/screddy/agents/`.
 
 ## Open items (deliberately deferred)
 
-- **LLM swap for the rule-pattern alert renderer** (`ask_llm_for_message`). Currently gpt-4o-mini via direct OpenAI. Could be routed through Jarvis `/chat` for consistency, but the messages are short, the path is hot during emergencies, and the integration cost outweighs the consistency win right now. Revisit if/when a v3.3 cleanup pass touches this code.
+- **LLM swap for the rule-pattern alert renderer** (`ask_llm_for_message`). Currently gpt-4o-mini via direct OpenAI. Could be routed through Screddy `/chat` for consistency, but the messages are short, the path is hot during emergencies, and the integration cost outweighs the consistency win right now. Revisit if/when a v3.3 cleanup pass touches this code.
 - **Wrist temperature pattern.** v2 spec already noted: when wrist temperature begins exporting from HAE, add a `wrist_temp_anomaly` deviation pattern. Out of scope here.
 - **Symptom keyword detection in journal entries.** Could trigger the urgent alert path if a journal entry mentions chest pain / dizziness / syncope. Deferred until journal cadence is closer to real-time (currently weekly Sunday export).

@@ -3,13 +3,13 @@ from __future__ import annotations
 
 
 def test_severity_ordering():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     assert p.SEVERITY_RANK["low"] < p.SEVERITY_RANK["moderate"] < p.SEVERITY_RANK["high"]
 
 
 def test_pattern_registry_has_all_v2_entries():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     v2 = {
         "low_recovery", "deconditioning", "possible_illness", "overtraining", "hrv_trend_down",
@@ -19,14 +19,14 @@ def test_pattern_registry_has_all_v2_entries():
 
 
 def test_pattern_registry_has_all_v3_entries():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     v3 = {"recovery_score_drop", "training_load_imbalance", "circadian_drift"}
     assert v3.issubset({pat.id for pat in p.PATTERN_REGISTRY})
 
 
 def test_pattern_registry_each_declares_requires_metrics():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # Most patterns must declare requires_metrics. The sickness_signal detector
     # is an intentional exception: it self-gates per-metric staleness internally
@@ -39,7 +39,7 @@ def test_pattern_registry_each_declares_requires_metrics():
 
 
 def test_pattern_registry_each_declares_severity():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     for pat in p.PATTERN_REGISTRY:
         assert pat.severity in ("low", "moderate", "high", "sickness", "emergency")
@@ -63,7 +63,7 @@ def _f(z_scores=None, pcts=None, recent_means=None):
 
 
 def test_low_recovery_fires_when_hrv_down_and_rhr_up():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = _f(z_scores={"heart_rate_variability": -1.2, "resting_heart_rate": 1.1})
     out = p.detect_low_recovery(f)
@@ -73,42 +73,42 @@ def test_low_recovery_fires_when_hrv_down_and_rhr_up():
 
 
 def test_low_recovery_silent_when_only_hrv_down():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = _f(z_scores={"heart_rate_variability": -1.5, "resting_heart_rate": 0.0})
     assert p.detect_low_recovery(f) is None
 
 
 def test_deconditioning_fires_when_all_three_activity_down_15pct():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = _f(pcts={"step_count": -0.20, "active_energy": -0.18, "apple_exercise_time": -0.16})
     assert p.detect_deconditioning(f)["id"] == "deconditioning"
 
 
 def test_deconditioning_silent_when_only_two_metrics_down():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = _f(pcts={"step_count": -0.20, "active_energy": -0.18, "apple_exercise_time": -0.05})
     assert p.detect_deconditioning(f) is None
 
 
 def test_possible_illness_fires_with_three_signals():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = _f(z_scores={"resting_heart_rate": 1.6, "heart_rate_variability": -1.2, "step_count": -1.1})
     assert p.detect_possible_illness(f)["id"] == "possible_illness"
 
 
 def test_overtraining_fires_when_hrv_down_energy_up():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = _f(z_scores={"heart_rate_variability": -1.1, "active_energy": 1.2})
     assert p.detect_overtraining(f)["id"] == "overtraining"
 
 
 def test_hrv_trend_down_fires_at_minus_15_pct_not_minus_10():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # -10% should NOT fire (above the new threshold of -15%)
     f10 = _f(pcts={"heart_rate_variability": -0.10})
@@ -119,7 +119,7 @@ def test_hrv_trend_down_fires_at_minus_15_pct_not_minus_10():
 
 
 def test_sleep_debt_fires_on_3_short_nights():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # 3 nights below 6.5h
     f = {"sleep_analysis": {
@@ -135,7 +135,7 @@ def test_sleep_debt_fires_on_3_short_nights():
 
 
 def test_sleep_debt_fires_on_14d_avg_drop_15pct():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {"sleep_analysis": {
         "stale": False,
@@ -147,7 +147,7 @@ def test_sleep_debt_fires_on_14d_avg_drop_15pct():
 
 
 def test_sleep_debt_silent_when_one_short_night_only():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {"sleep_analysis": {
         "stale": False,
@@ -159,7 +159,7 @@ def test_sleep_debt_silent_when_one_short_night_only():
 
 
 def test_respiratory_anomaly_fires_on_3_consecutive_low_spo2_nights():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "blood_oxygen_saturation": {"stale": False, "recent_3d_z_scores": [-1.6, -1.7, -1.8]},
@@ -171,7 +171,7 @@ def test_respiratory_anomaly_fires_on_3_consecutive_low_spo2_nights():
 
 
 def test_respiratory_anomaly_fires_on_3_consecutive_high_resp_rate_nights():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "blood_oxygen_saturation": {"stale": False, "recent_3d_z_scores": [0.0, 0.0, 0.0]},
@@ -181,7 +181,7 @@ def test_respiratory_anomaly_fires_on_3_consecutive_high_resp_rate_nights():
 
 
 def test_respiratory_anomaly_silent_on_single_night():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "blood_oxygen_saturation": {"stale": False, "recent_3d_z_scores": [-1.6, 0.0, 0.0]},
@@ -191,7 +191,7 @@ def test_respiratory_anomaly_silent_on_single_night():
 
 
 def test_cardio_fitness_decline_fires_on_5pct_drop_over_90d():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {"vo2_max": {"stale": False, "trend_pct_change_90d": -0.06, "recent_mean": 38.0}}
     out = p.detect_cardio_fitness_decline(f)
@@ -200,14 +200,14 @@ def test_cardio_fitness_decline_fires_on_5pct_drop_over_90d():
 
 
 def test_cardio_fitness_decline_silent_at_3pct_drop():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {"vo2_max": {"stale": False, "trend_pct_change_90d": -0.03}}
     assert p.detect_cardio_fitness_decline(f) is None
 
 
 def test_gait_anomaly_fires_on_3_days_high_asymmetry():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "walking_asymmetry_percentage": {"stale": False, "recent_3d_z_scores": [2.1, 2.2, 2.3]},
@@ -219,7 +219,7 @@ def test_gait_anomaly_fires_on_3_days_high_asymmetry():
 
 
 def test_gait_anomaly_silent_on_single_day():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "walking_asymmetry_percentage": {"stale": False, "recent_3d_z_scores": [2.1, 0.0, 0.0]},
@@ -229,7 +229,7 @@ def test_gait_anomaly_silent_on_single_day():
 
 
 def test_cumulative_strain_fires_when_all_three_conditions():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "sleep_analysis": {"stale": False, "trend_7d_avg_hours": 6.0},
@@ -240,7 +240,7 @@ def test_cumulative_strain_fires_when_all_three_conditions():
 
 
 def test_cumulative_strain_silent_when_sleep_adequate():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "sleep_analysis": {"stale": False, "trend_7d_avg_hours": 7.5},
@@ -251,7 +251,7 @@ def test_cumulative_strain_silent_when_sleep_adequate():
 
 
 def test_recovery_score_drop_fires_when_composite_under_minus_one():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # hrv_z=-1.5, rhr_z=+1.2 -> rhr_axis=-1.2, sleep_recent=5h -> sleep_axis=-2
     # composite = (-1.5 + -1.2 + -2.0) / 3 = -1.57 -> high
@@ -267,7 +267,7 @@ def test_recovery_score_drop_fires_when_composite_under_minus_one():
 
 
 def test_recovery_score_drop_silent_when_metrics_neutral():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "heart_rate_variability": {"stale": False, "z_score": 0.2},
@@ -278,7 +278,7 @@ def test_recovery_score_drop_silent_when_metrics_neutral():
 
 
 def test_training_load_overreach_fires_above_1_5():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "apple_exercise_time": {
@@ -294,7 +294,7 @@ def test_training_load_overreach_fires_above_1_5():
 
 
 def test_training_load_detraining_fires_below_0_8():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "apple_exercise_time": {
@@ -310,7 +310,7 @@ def test_training_load_detraining_fires_below_0_8():
 
 
 def test_training_load_silent_in_normal_range():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "apple_exercise_time": {"stale": False, "acute_chronic_ratio": 1.0}
@@ -320,14 +320,14 @@ def test_training_load_silent_in_normal_range():
 
 def test_training_load_silent_when_ratio_missing():
     """Insufficient history → ratio is None → no false alert."""
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {"apple_exercise_time": {"stale": False, "acute_chronic_ratio": None}}
     assert p.detect_training_load_imbalance(f) is None
 
 
 def test_circadian_drift_fires_when_stdev_above_1_5h():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "sleep_analysis": {
@@ -342,7 +342,7 @@ def test_circadian_drift_fires_when_stdev_above_1_5h():
 
 
 def test_circadian_drift_silent_when_stdev_below_threshold():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "sleep_analysis": {
@@ -358,13 +358,13 @@ def test_circadian_drift_silent_when_stdev_below_threshold():
 
 
 def test_severity_rank_includes_emergency():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     assert p.SEVERITY_RANK["emergency"] > p.SEVERITY_RANK["high"]
 
 
 def test_emergency_cardiac_event_fires_on_any_count():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "irregular_heart_rhythm_event": {"stale": False, "latest_day_count": 1},
@@ -378,7 +378,7 @@ def test_emergency_cardiac_event_fires_on_any_count():
 
 
 def test_emergency_cardiac_event_silent_when_zero():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "irregular_heart_rhythm_event": {"stale": False, "latest_day_count": 0},
@@ -389,7 +389,7 @@ def test_emergency_cardiac_event_silent_when_zero():
 
 
 def test_emergency_severe_respiratory_fires_on_spo2_two_severe_nights():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "blood_oxygen_saturation": {
@@ -404,7 +404,7 @@ def test_emergency_severe_respiratory_fires_on_spo2_two_severe_nights():
 
 
 def test_emergency_severe_respiratory_fires_on_high_resp_rate_sustained():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "blood_oxygen_saturation": {"stale": False, "recent_3d_z_scores": [0.0, 0.1, -0.2]},
@@ -415,7 +415,7 @@ def test_emergency_severe_respiratory_fires_on_high_resp_rate_sustained():
 
 
 def test_emergency_severe_respiratory_silent_on_single_bad_night():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "blood_oxygen_saturation": {
@@ -428,7 +428,7 @@ def test_emergency_severe_respiratory_silent_on_single_bad_night():
 
 
 def test_emergency_systemic_inflammation_fires_on_quad_signal():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "resting_heart_rate": {"stale": False, "z_score": 2.4},
@@ -445,7 +445,7 @@ def test_emergency_systemic_inflammation_fires_on_quad_signal():
 
 
 def test_emergency_systemic_inflammation_silent_when_only_three_signals():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "resting_heart_rate": {"stale": False, "z_score": 2.4},
@@ -460,7 +460,7 @@ def test_emergency_systemic_inflammation_silent_when_only_three_signals():
 
 
 def test_emergency_extreme_heart_rate_fires_on_sustained_high():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "resting_heart_rate": {
@@ -476,7 +476,7 @@ def test_emergency_extreme_heart_rate_fires_on_sustained_high():
 
 def test_emergency_extreme_heart_rate_fires_on_sharp_low_drop():
     """45 bpm with a normal 60 bpm baseline = real drop, not athlete bradycardia."""
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "resting_heart_rate": {
@@ -492,7 +492,7 @@ def test_emergency_extreme_heart_rate_fires_on_sharp_low_drop():
 
 def test_emergency_extreme_heart_rate_silent_for_athlete_baseline():
     """Athlete with low RHR baseline shouldn't trigger the low-HR emergency."""
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "resting_heart_rate": {
@@ -505,7 +505,7 @@ def test_emergency_extreme_heart_rate_silent_for_athlete_baseline():
 
 
 def test_emergency_extreme_heart_rate_silent_in_normal_range():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     f = {
         "resting_heart_rate": {
@@ -519,7 +519,7 @@ def test_emergency_extreme_heart_rate_silent_in_normal_range():
 
 def test_anti_spam_does_not_suppress_emergency():
     """Emergency-tier patterns must always fire, even if same id fired yesterday."""
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     prior_jsonl = [{
         "_patterns": [{
@@ -533,7 +533,7 @@ def test_anti_spam_does_not_suppress_emergency():
 
 
 def test_detect_all_returns_only_eligible_patterns_for_state():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # watch_off — only gait_anomaly eligible (its requires_metrics are iPhone-derived)
     f = {
@@ -549,7 +549,7 @@ def test_detect_all_returns_only_eligible_patterns_for_state():
 
 
 def test_detect_all_skips_patterns_with_stale_required_metrics():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # heart_rate_variability is stale → low_recovery should not fire even if
     # the z values look anomalous
@@ -562,7 +562,7 @@ def test_detect_all_skips_patterns_with_stale_required_metrics():
 
 
 def test_detect_all_returns_all_eligible_in_watch_on():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     # Only HRV trend down condition met; nothing else
     f = {"heart_rate_variability": {"stale": False, "trend_pct_change_14d": -0.20, "z_score": 0.0}}
@@ -571,7 +571,7 @@ def test_detect_all_returns_all_eligible_in_watch_on():
 
 
 def test_anti_spam_marks_repeat_within_3d_as_suppressed():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     today_pattern = {"id": "low_recovery", "severity": "moderate", "headline": "x", "evidence": {}}
     prior = [
@@ -583,7 +583,7 @@ def test_anti_spam_marks_repeat_within_3d_as_suppressed():
 
 
 def test_anti_spam_allows_severity_escalation():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     today_pattern = {"id": "low_recovery", "severity": "high", "headline": "x", "evidence": {}}
     prior = [
@@ -595,7 +595,7 @@ def test_anti_spam_allows_severity_escalation():
 
 
 def test_anti_spam_ignores_already_suppressed_priors():
-    from jarvis.agents._health import patterns as p
+    from screddy.agents._health import patterns as p
 
     today_pattern = {"id": "low_recovery", "severity": "moderate", "headline": "x", "evidence": {}}
     prior = [
@@ -621,7 +621,7 @@ def _stale_finding() -> dict:
 
 class TestSicknessSignal:
     def test_fires_with_rhr_up_and_hrv_down(self):
-        from jarvis.agents._health.patterns import detect_sickness_signal
+        from screddy.agents._health.patterns import detect_sickness_signal
         findings = {
             "resting_heart_rate": _fresh_finding(z_score=1.5, recent_mean=78.0),
             "heart_rate_variability": _fresh_finding(z_score=-1.2, recent_mean=32.0),
@@ -638,7 +638,7 @@ class TestSicknessSignal:
         assert "hrv_down" in result["evidence"]["signals_fired"]
 
     def test_does_not_fire_with_only_one_signal(self):
-        from jarvis.agents._health.patterns import detect_sickness_signal
+        from screddy.agents._health.patterns import detect_sickness_signal
         findings = {
             "resting_heart_rate": _fresh_finding(z_score=1.5),
             "heart_rate_variability": _fresh_finding(z_score=0.0),
@@ -650,7 +650,7 @@ class TestSicknessSignal:
         assert detect_sickness_signal(findings) is None
 
     def test_does_not_fire_when_all_metrics_stale(self):
-        from jarvis.agents._health.patterns import detect_sickness_signal
+        from screddy.agents._health.patterns import detect_sickness_signal
         findings = {
             "resting_heart_rate": _stale_finding(),
             "heart_rate_variability": _stale_finding(),
@@ -662,7 +662,7 @@ class TestSicknessSignal:
         assert detect_sickness_signal(findings) is None
 
     def test_wrist_temp_elevation_counts_as_signal(self):
-        from jarvis.agents._health.patterns import detect_sickness_signal
+        from screddy.agents._health.patterns import detect_sickness_signal
         findings = {
             "resting_heart_rate": _fresh_finding(z_score=1.2),
             "basal_body_temperature": _fresh_finding(z_score=1.5, recent_mean=0.4),
@@ -679,7 +679,7 @@ class TestSicknessSignal:
     def test_spo2_absolute_threshold_triggers_signal(self):
         """SpO2 recent_mean below 94% counts as the spo2_down signal even
         if z-score is small (absolute clinical threshold)."""
-        from jarvis.agents._health.patterns import detect_sickness_signal
+        from screddy.agents._health.patterns import detect_sickness_signal
         findings = {
             "resting_heart_rate": _fresh_finding(z_score=1.2),
             "blood_oxygen_saturation": _fresh_finding(
@@ -697,7 +697,7 @@ class TestSicknessSignal:
     def test_spo2_sustained_dip_triggers_signal(self):
         """SpO2 with 2+ of last 3 days at z <= -0.8 counts as spo2_down even
         if absolute level is above 94%."""
-        from jarvis.agents._health.patterns import detect_sickness_signal
+        from screddy.agents._health.patterns import detect_sickness_signal
         findings = {
             "resting_heart_rate": _fresh_finding(z_score=1.2),
             "blood_oxygen_saturation": _fresh_finding(
@@ -713,24 +713,24 @@ class TestSicknessSignal:
         assert "spo2_down" in result["evidence"]["signals_fired"]
 
     def test_registered_in_pattern_registry(self):
-        from jarvis.agents._health.patterns import PATTERN_REGISTRY
+        from screddy.agents._health.patterns import PATTERN_REGISTRY
         ids = [p.id for p in PATTERN_REGISTRY]
         assert "sickness_signal" in ids
 
     def test_severity_rank_includes_sickness(self):
-        from jarvis.agents._health.patterns import SEVERITY_RANK
+        from screddy.agents._health.patterns import SEVERITY_RANK
         assert "sickness" in SEVERITY_RANK
         # Between high and emergency
         assert SEVERITY_RANK["high"] < SEVERITY_RANK["sickness"] < SEVERITY_RANK["emergency"]
 
     def test_eligible_in_watch_on_and_partial(self):
-        from jarvis.agents._health.patterns import STATE_ELIGIBILITY
+        from screddy.agents._health.patterns import STATE_ELIGIBILITY
         assert "sickness_signal" in STATE_ELIGIBILITY["watch_on"]
         assert "sickness_signal" in STATE_ELIGIBILITY["partial"]
 
     def test_anti_spam_exempts_sickness(self):
         """Sickness patterns bypass the 3-day cooldown like emergencies do."""
-        from jarvis.agents._health.patterns import anti_spam_filter
+        from screddy.agents._health.patterns import anti_spam_filter
         pattern = {"id": "sickness_signal", "severity": "sickness"}
         prior = [
             {"_patterns": [{"id": "sickness_signal", "severity": "sickness"}]},
