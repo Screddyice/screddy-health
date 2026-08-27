@@ -2,11 +2,11 @@
 
 Fires Tue 12:00 PT and Sun 16:00 PT via systemd timer health-digest.timer.
 Reads the existing JSONL audit log + the past week of mental-health journal
-entries, routes generation through Jarvis's /chat API (openclaw jarvis
+entries, routes generation through Screddy's /chat API (openclaw screddy
 agent, GPT-5.4), and delivers the result to Telegram.
 
 Daily silent analysis (analyse → JSONL → brain write → emergency
-edge-trigger) is owned by jarvis.agents.health_monitor and runs on its
+edge-trigger) is owned by screddy.agents.health_monitor and runs on its
 own timer. This module does NOT call analyse(); it consumes whatever the
 daily watchdog has already written.
 """
@@ -19,20 +19,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from jarvis.agents._health import weekly_digest
-from jarvis.channels import telegram_notify
+from screddy.agents._health import weekly_digest
+from screddy.channels import telegram_notify
 
 logger = logging.getLogger(__name__)
 
 JSONL_LOG_PATH = Path(
     os.environ.get(
-        "JARVIS_HEALTH_JSONL_LOG_PATH",
+        "SCREDDY_HEALTH_JSONL_LOG_PATH",
         str(Path.home() / "logs" / "health-monitor.jsonl"),
     )
 )
-# Override the digest delivery timezone with JARVIS_HEALTH_TZ (any zoneinfo
+# Override the digest delivery timezone with SCREDDY_HEALTH_TZ (any zoneinfo
 # name); defaults to America/Los_Angeles to match the original deployment.
-LA_TZ = ZoneInfo(os.environ.get("JARVIS_HEALTH_TZ", "America/Los_Angeles"))
+LA_TZ = ZoneInfo(os.environ.get("SCREDDY_HEALTH_TZ", "America/Los_Angeles"))
 
 DISCLAIMER = (
     "_Pattern check, not a diagnosis. Talk to a clinician for medical concerns._"
@@ -87,7 +87,7 @@ def main() -> int:
         # The engine returned None — either chat failed or returned empty.
         # Surface this to the user rather than going silent.
         fallback = (
-            "_Digest skipped, sir — Jarvis didn't respond. "
+            "_Digest skipped, sir — Screddy didn't respond. "
             "Will retry on next scheduled fire._\n\n" + DISCLAIMER
         )
         ok = telegram_notify.send(fallback)

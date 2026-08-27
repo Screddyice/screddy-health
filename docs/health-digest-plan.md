@@ -1,8 +1,8 @@
 # Health Digest v3.2 Implementation Plan
 
 > **Provenance:** This is the implementation plan written for the author's
-> original deployment. Paths like `~/jarvis/vendor/openjarvis/`, the
-> `neb-server` SSH alias, and the `Screddyice/jarvis` repo refer to the
+> original deployment. Paths like `~/screddy/vendor/openscreddy/`, the
+> `neb-server` SSH alias, and the `Screddyice/screddy` repo refer to the
 > private upstream from which this project was extracted. The code in
 > this repository has been generalized so a fresh install does not need
 > any of that infrastructure — see the project root `README.md` for
@@ -11,11 +11,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Evolve the existing health-monitor on `neb-server` into a twice-weekly narrative health digest (Tue 12:00 PT, Sun 16:00 PT), route LLM generation through Jarvis's `/chat` API, and collapse the every-3h emergency check into a once-daily 11:00 PT watchdog.
+**Goal:** Evolve the existing health-monitor on `neb-server` into a twice-weekly narrative health digest (Tue 12:00 PT, Sun 16:00 PT), route LLM generation through Screddy's `/chat` API, and collapse the every-3h emergency check into a once-daily 11:00 PT watchdog.
 
-**Architecture:** Two systemd timers on `neb-server`. `health-monitor.timer` (daily 11:00 PT) keeps doing the existing silent analyse → JSONL → brain-write → emergency edge-trigger. New `health-digest.timer` (Tue 12:00 + Sun 16:00 PT) runs a new entry point `jarvis.agents.health_digest` that reads JSONL + journal entries, posts a structured prompt to `http://127.0.0.1:8200/chat` (openclaw jarvis agent, GPT-5.4), and delivers via Telegram. A new `_health/glossary.py` module supplies metric definitions injected into the prompt.
+**Architecture:** Two systemd timers on `neb-server`. `health-monitor.timer` (daily 11:00 PT) keeps doing the existing silent analyse → JSONL → brain-write → emergency edge-trigger. New `health-digest.timer` (Tue 12:00 + Sun 16:00 PT) runs a new entry point `screddy.agents.health_digest` that reads JSONL + journal entries, posts a structured prompt to `http://127.0.0.1:8200/chat` (openclaw screddy agent, GPT-5.4), and delivers via Telegram. A new `_health/glossary.py` module supplies metric definitions injected into the prompt.
 
-**Tech Stack:** Python 3.10+, uv, httpx 0.27+, pytest 8+, respx 0.22+, systemd user units, jarvis-api HTTP server.
+**Tech Stack:** Python 3.10+, uv, httpx 0.27+, pytest 8+, respx 0.22+, systemd user units, screddy-api HTTP server.
 
 **Spec:** [`health-digest-design.md`](health-digest-design.md)
 
@@ -25,7 +25,7 @@
 
 ## Conventions for every task
 
-- Run tests from the repo root: `cd ~/projects/Screddyice/jarvis && uv run pytest <path> -v`
+- Run tests from the repo root: `cd ~/projects/Screddyice/screddy && uv run pytest <path> -v`
 - All commits sign off with the Co-Authored-By trailer the harness uses.
 - Use `git add <specific files>` — never `git add -A` or `git add .`
 - Branch naming + commit format follows `~/projects/CLAUDE.md` (Conventional Commits, `feat(scope):` prefix, max 72 char title, body explains why).
@@ -43,13 +43,13 @@
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git branch --show-current
+cd ~/projects/Screddyice/screddy && git branch --show-current
 ```
 Expected: `feat/be-health-digest-v3-2`
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git status --short | grep -vE "^.. openclaw/workspace/" || true
+cd ~/projects/Screddyice/screddy && git status --short | grep -vE "^.. openclaw/workspace/" || true
 ```
 Expected: empty (the only WIP is in `openclaw/workspace/` which is unrelated and stays unstaged for the whole plan).
 
@@ -60,21 +60,21 @@ If branch is wrong: `git checkout feat/be-health-digest-v3-2`. If the unrelated 
 ## Task 1: Create `_health/glossary.py` with `METRIC_GLOSSARY` and `format_for_prompt`
 
 **Files:**
-- Create: `src/jarvis/agents/_health/glossary.py`
-- Test: `tests/jarvis/agents/_health/test_glossary.py`
+- Create: `src/screddy/agents/_health/glossary.py`
+- Test: `tests/screddy/agents/_health/test_glossary.py`
 
 ### Step 1.1: Write the failing test
 
-Create `tests/jarvis/agents/_health/__init__.py` if missing:
+Create `tests/screddy/agents/_health/__init__.py` if missing:
 
 ```bash
-mkdir -p ~/projects/Screddyice/jarvis/tests/jarvis/agents/_health
-touch ~/projects/Screddyice/jarvis/tests/jarvis/agents/_health/__init__.py
+mkdir -p ~/projects/Screddyice/screddy/tests/screddy/agents/_health
+touch ~/projects/Screddyice/screddy/tests/screddy/agents/_health/__init__.py
 ```
 
 - [ ] **Step 1.1: Write the failing test for `format_for_prompt`**
 
-Create `tests/jarvis/agents/_health/test_glossary.py`:
+Create `tests/screddy/agents/_health/test_glossary.py`:
 
 ```python
 """Tests for the metric glossary used in the digest LLM prompt."""
@@ -83,8 +83,8 @@ from __future__ import annotations
 
 def test_metric_glossary_includes_core_metrics():
     """Every metric in METRIC_REGISTRY has a glossary entry."""
-    from jarvis.agents._health.glossary import METRIC_GLOSSARY
-    from jarvis.agents._health.metric_fetch import METRIC_REGISTRY
+    from screddy.agents._health.glossary import METRIC_GLOSSARY
+    from screddy.agents._health.metric_fetch import METRIC_REGISTRY
 
     missing = [e.id for e in METRIC_REGISTRY if e.id not in METRIC_GLOSSARY]
     assert missing == [], f"missing glossary entries: {missing}"
@@ -92,7 +92,7 @@ def test_metric_glossary_includes_core_metrics():
 
 def test_glossary_entry_shape():
     """Each glossary entry has label, units, definition, healthy_range, concerning."""
-    from jarvis.agents._health.glossary import METRIC_GLOSSARY
+    from screddy.agents._health.glossary import METRIC_GLOSSARY
 
     required_keys = {"label", "units", "definition", "healthy_range", "concerning"}
     for metric_id, entry in METRIC_GLOSSARY.items():
@@ -102,7 +102,7 @@ def test_glossary_entry_shape():
 
 def test_format_for_prompt_includes_only_present_metrics():
     """format_for_prompt renders only metrics that appear in findings AND glossary."""
-    from jarvis.agents._health.glossary import format_for_prompt
+    from screddy.agents._health.glossary import format_for_prompt
 
     findings = {
         "resting_heart_rate": {"recent_mean": 70, "stale": False},
@@ -120,7 +120,7 @@ def test_format_for_prompt_includes_only_present_metrics():
 
 def test_format_for_prompt_empty_when_no_overlap():
     """format_for_prompt returns empty string when findings have no glossary matches."""
-    from jarvis.agents._health.glossary import format_for_prompt
+    from screddy.agents._health.glossary import format_for_prompt
 
     assert format_for_prompt({"_data_state": {}}) == ""
     assert format_for_prompt({}) == ""
@@ -130,13 +130,13 @@ def test_format_for_prompt_empty_when_no_overlap():
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/_health/test_glossary.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/_health/test_glossary.py -v
 ```
-Expected: FAIL with `ImportError` / `ModuleNotFoundError` for `jarvis.agents._health.glossary`.
+Expected: FAIL with `ImportError` / `ModuleNotFoundError` for `screddy.agents._health.glossary`.
 
 - [ ] **Step 1.3: Create `glossary.py` with the implementation**
 
-Create `src/jarvis/agents/_health/glossary.py`:
+Create `src/screddy/agents/_health/glossary.py`:
 
 ```python
 """Metric glossary — short, plain-English definitions of every Apple Health
@@ -339,7 +339,7 @@ def format_for_prompt(findings: dict) -> str:
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/_health/test_glossary.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/_health/test_glossary.py -v
 ```
 Expected: 4 passed.
 
@@ -347,10 +347,10 @@ Expected: 4 passed.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add \
-  src/jarvis/agents/_health/glossary.py \
-  tests/jarvis/agents/_health/__init__.py \
-  tests/jarvis/agents/_health/test_glossary.py && \
+cd ~/projects/Screddyice/screddy && git add \
+  src/screddy/agents/_health/glossary.py \
+  tests/screddy/agents/_health/__init__.py \
+  tests/screddy/agents/_health/test_glossary.py && \
 git commit -m "$(cat <<'EOF'
 feat(health): add metric glossary for digest LLM prompts
 
@@ -367,20 +367,20 @@ EOF
 
 ---
 
-## Task 2: Create `_health/jarvis_api_client.py` HTTP wrapper
+## Task 2: Create `_health/screddy_api_client.py` HTTP wrapper
 
 **Files:**
-- Create: `src/jarvis/agents/_health/jarvis_api_client.py`
-- Test: `tests/jarvis/agents/_health/test_jarvis_api_client.py`
+- Create: `src/screddy/agents/_health/screddy_api_client.py`
+- Test: `tests/screddy/agents/_health/test_screddy_api_client.py`
 
 ### Step 2.1: Write the failing test
 
 - [ ] **Step 2.1: Write the failing test**
 
-Create `tests/jarvis/agents/_health/test_jarvis_api_client.py`:
+Create `tests/screddy/agents/_health/test_screddy_api_client.py`:
 
 ```python
-"""Tests for the thin HTTP wrapper around Jarvis's /chat endpoint."""
+"""Tests for the thin HTTP wrapper around Screddy's /chat endpoint."""
 from __future__ import annotations
 
 import pytest
@@ -390,27 +390,27 @@ from httpx import Response
 
 def test_chat_returns_answer_field(monkeypatch):
     """Successful /chat call returns the `answer` field from the JSON body."""
-    from jarvis.agents._health import jarvis_api_client
+    from screddy.agents._health import screddy_api_client
 
-    monkeypatch.setenv("JARVIS_API_TOKEN", "tok123")
+    monkeypatch.setenv("SCREDDY_API_TOKEN", "tok123")
     with respx.mock:
         respx.post("http://127.0.0.1:8200/chat").mock(
             return_value=Response(200, json={"answer": "hello sir", "session_id": "s1"})
         )
-        out = jarvis_api_client.chat("Tell me about my week")
+        out = screddy_api_client.chat("Tell me about my week")
     assert out == "hello sir"
 
 
 def test_chat_sends_authorization_and_message(monkeypatch):
     """The POST body contains the message; Authorization header carries the token."""
-    from jarvis.agents._health import jarvis_api_client
+    from screddy.agents._health import screddy_api_client
 
-    monkeypatch.setenv("JARVIS_API_TOKEN", "tok123")
+    monkeypatch.setenv("SCREDDY_API_TOKEN", "tok123")
     with respx.mock:
         route = respx.post("http://127.0.0.1:8200/chat").mock(
             return_value=Response(200, json={"answer": "ok"})
         )
-        jarvis_api_client.chat("Tell me about my week")
+        screddy_api_client.chat("Tell me about my week")
 
     assert route.called
     req = route.calls.last.request
@@ -422,38 +422,38 @@ def test_chat_sends_authorization_and_message(monkeypatch):
 
 def test_chat_non_200_raises(monkeypatch):
     """Non-200 response raises with the status code in the message."""
-    from jarvis.agents._health import jarvis_api_client
+    from screddy.agents._health import screddy_api_client
 
-    monkeypatch.setenv("JARVIS_API_TOKEN", "tok123")
+    monkeypatch.setenv("SCREDDY_API_TOKEN", "tok123")
     with respx.mock:
         respx.post("http://127.0.0.1:8200/chat").mock(
             return_value=Response(502, text="bad gateway")
         )
-        with pytest.raises(jarvis_api_client.JarvisApiError) as excinfo:
-            jarvis_api_client.chat("hi")
+        with pytest.raises(screddy_api_client.ScreddyApiError) as excinfo:
+            screddy_api_client.chat("hi")
     assert "502" in str(excinfo.value)
 
 
 def test_chat_missing_token_raises(monkeypatch):
-    """Missing JARVIS_API_TOKEN raises clearly before any network call."""
-    from jarvis.agents._health import jarvis_api_client
+    """Missing SCREDDY_API_TOKEN raises clearly before any network call."""
+    from screddy.agents._health import screddy_api_client
 
-    monkeypatch.delenv("JARVIS_API_TOKEN", raising=False)
-    with pytest.raises(jarvis_api_client.JarvisApiError) as excinfo:
-        jarvis_api_client.chat("hi")
-    assert "JARVIS_API_TOKEN" in str(excinfo.value)
+    monkeypatch.delenv("SCREDDY_API_TOKEN", raising=False)
+    with pytest.raises(screddy_api_client.ScreddyApiError) as excinfo:
+        screddy_api_client.chat("hi")
+    assert "SCREDDY_API_TOKEN" in str(excinfo.value)
 
 
 def test_chat_passes_session_id_when_provided(monkeypatch):
     """Optional session_id appears in the POST body."""
-    from jarvis.agents._health import jarvis_api_client
+    from screddy.agents._health import screddy_api_client
 
-    monkeypatch.setenv("JARVIS_API_TOKEN", "tok123")
+    monkeypatch.setenv("SCREDDY_API_TOKEN", "tok123")
     with respx.mock:
         route = respx.post("http://127.0.0.1:8200/chat").mock(
             return_value=Response(200, json={"answer": "ok"})
         )
-        jarvis_api_client.chat("hi", session_id="abc-123")
+        screddy_api_client.chat("hi", session_id="abc-123")
 
     import json as _json
     body = _json.loads(route.calls.last.request.content)
@@ -464,24 +464,24 @@ def test_chat_passes_session_id_when_provided(monkeypatch):
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/_health/test_jarvis_api_client.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/_health/test_screddy_api_client.py -v
 ```
-Expected: 5 errors, all `ImportError` for `jarvis_api_client`.
+Expected: 5 errors, all `ImportError` for `screddy_api_client`.
 
-- [ ] **Step 2.3: Implement `jarvis_api_client.py`**
+- [ ] **Step 2.3: Implement `screddy_api_client.py`**
 
-Create `src/jarvis/agents/_health/jarvis_api_client.py`:
+Create `src/screddy/agents/_health/screddy_api_client.py`:
 
 ```python
-"""Thin HTTP client for Jarvis's local /chat endpoint.
+"""Thin HTTP client for Screddy's local /chat endpoint.
 
-The digest pipeline routes ALL narrative generation through Jarvis itself
-(http://127.0.0.1:8200/chat → openclaw "jarvis" agent, GPT-5.4 + tools)
+The digest pipeline routes ALL narrative generation through Screddy itself
+(http://127.0.0.1:8200/chat → openclaw "screddy" agent, GPT-5.4 + tools)
 rather than instantiating its own OpenAI client. This keeps the digest's
 voice consistent with the user's voice/chat surface and lets the digest
 benefit from any tool access the agent has.
 
-Auth: JARVIS_API_TOKEN env var is sent as `Authorization: Bearer <token>`.
+Auth: SCREDDY_API_TOKEN env var is sent as `Authorization: Bearer <token>`.
 """
 from __future__ import annotations
 
@@ -490,12 +490,12 @@ from typing import Optional
 
 import httpx
 
-JARVIS_API_URL = "http://127.0.0.1:8200/chat"
+SCREDDY_API_URL = "http://127.0.0.1:8200/chat"
 DEFAULT_TIMEOUT_S = 120.0
 
 
-class JarvisApiError(RuntimeError):
-    """Raised when the Jarvis API call fails (network, non-200, missing creds)."""
+class ScreddyApiError(RuntimeError):
+    """Raised when the Screddy API call fails (network, non-200, missing creds)."""
 
 
 def chat(
@@ -503,21 +503,21 @@ def chat(
     *,
     session_id: Optional[str] = None,
     timeout_s: float = DEFAULT_TIMEOUT_S,
-    url: str = JARVIS_API_URL,
+    url: str = SCREDDY_API_URL,
 ) -> str:
-    """POST `message` to Jarvis /chat and return the answer string.
+    """POST `message` to Screddy /chat and return the answer string.
 
-    Raises JarvisApiError on:
-      - Missing JARVIS_API_TOKEN env var
+    Raises ScreddyApiError on:
+      - Missing SCREDDY_API_TOKEN env var
       - Network / transport error (timeout, connection refused)
       - Non-200 response
       - Missing `answer` field in the response body
     """
-    token = os.environ.get("JARVIS_API_TOKEN")
+    token = os.environ.get("SCREDDY_API_TOKEN")
     if not token:
-        raise JarvisApiError(
-            "JARVIS_API_TOKEN is not set; cannot call Jarvis /chat. "
-            "Source ~/jarvis/config/jarvis.env or set the env var."
+        raise ScreddyApiError(
+            "SCREDDY_API_TOKEN is not set; cannot call Screddy /chat. "
+            "Source ~/screddy/config/screddy.env or set the env var."
         )
 
     payload: dict[str, str] = {"message": message}
@@ -532,23 +532,23 @@ def chat(
             timeout=timeout_s,
         )
     except httpx.HTTPError as exc:
-        raise JarvisApiError(f"Jarvis /chat transport error: {exc}") from exc
+        raise ScreddyApiError(f"Screddy /chat transport error: {exc}") from exc
 
     if resp.status_code != 200:
         snippet = resp.text[:200].replace("\n", " ")
-        raise JarvisApiError(
-            f"Jarvis /chat returned {resp.status_code}: {snippet}"
+        raise ScreddyApiError(
+            f"Screddy /chat returned {resp.status_code}: {snippet}"
         )
 
     try:
         data = resp.json()
     except ValueError as exc:
-        raise JarvisApiError(f"Jarvis /chat returned non-JSON: {exc}") from exc
+        raise ScreddyApiError(f"Screddy /chat returned non-JSON: {exc}") from exc
 
     answer = data.get("answer")
     if not isinstance(answer, str):
-        raise JarvisApiError(
-            f"Jarvis /chat response missing 'answer' string field: {data}"
+        raise ScreddyApiError(
+            f"Screddy /chat response missing 'answer' string field: {data}"
         )
     return answer
 ```
@@ -557,7 +557,7 @@ def chat(
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/_health/test_jarvis_api_client.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/_health/test_screddy_api_client.py -v
 ```
 Expected: 5 passed.
 
@@ -565,16 +565,16 @@ Expected: 5 passed.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add \
-  src/jarvis/agents/_health/jarvis_api_client.py \
-  tests/jarvis/agents/_health/test_jarvis_api_client.py && \
+cd ~/projects/Screddyice/screddy && git add \
+  src/screddy/agents/_health/screddy_api_client.py \
+  tests/screddy/agents/_health/test_screddy_api_client.py && \
 git commit -m "$(cat <<'EOF'
-feat(health): add Jarvis API HTTP client for digest LLM routing
+feat(health): add Screddy API HTTP client for digest LLM routing
 
-New _health/jarvis_api_client.py wraps POST http://127.0.0.1:8200/chat
-with Bearer token auth, 120s default timeout, and JarvisApiError on
+New _health/screddy_api_client.py wraps POST http://127.0.0.1:8200/chat
+with Bearer token auth, 120s default timeout, and ScreddyApiError on
 any failure mode. Used by the upcoming health-digest path so narrative
-generation flows through Jarvis itself (openclaw jarvis agent, GPT-5.4)
+generation flows through Screddy itself (openclaw screddy agent, GPT-5.4)
 rather than a direct OpenAI instantiation.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
@@ -587,9 +587,9 @@ EOF
 ## Task 3: Rename `retrospective.py` → `weekly_digest.py` and generalize Tue/Sun gate
 
 **Files:**
-- Rename: `src/jarvis/agents/_health/retrospective.py` → `src/jarvis/agents/_health/weekly_digest.py`
+- Rename: `src/screddy/agents/_health/retrospective.py` → `src/screddy/agents/_health/weekly_digest.py`
 - Modify (the renamed file)
-- Create: `tests/jarvis/agents/_health/test_weekly_digest.py`
+- Create: `tests/screddy/agents/_health/test_weekly_digest.py`
 
 ### Step 3.1: Rename the file with git mv
 
@@ -597,16 +597,16 @@ EOF
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git mv \
-  src/jarvis/agents/_health/retrospective.py \
-  src/jarvis/agents/_health/weekly_digest.py
+cd ~/projects/Screddyice/screddy && git mv \
+  src/screddy/agents/_health/retrospective.py \
+  src/screddy/agents/_health/weekly_digest.py
 ```
 
 ### Step 3.2: Write failing tests for the new shape
 
 - [ ] **Step 3.2: Write the failing tests**
 
-Create `tests/jarvis/agents/_health/test_weekly_digest.py`:
+Create `tests/screddy/agents/_health/test_weekly_digest.py`:
 
 ```python
 """Tests for the renamed/generalized weekly digest engine.
@@ -616,7 +616,7 @@ Replaces the prior Sunday-only retrospective tests with coverage for:
   - Distinct Tue vs Sun framing line
   - Glossary block injection
   - Sparse-journal fallback
-  - Jarvis client integration (injected callable, mocked)
+  - Screddy client integration (injected callable, mocked)
 """
 from __future__ import annotations
 
@@ -645,7 +645,7 @@ def _make_fake_findings():
 
 def test_run_returns_none_on_non_digest_day(monkeypatch):
     """Day gate accepts Tue=1 and Sun=6 only. Wednesday (2) returns None."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -659,7 +659,7 @@ def test_run_returns_none_on_non_digest_day(monkeypatch):
 
 def test_run_calls_chat_fn_on_tuesday(monkeypatch):
     """Tuesday (weekday=1) invokes chat_fn and returns its output."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -680,7 +680,7 @@ def test_run_calls_chat_fn_on_tuesday(monkeypatch):
 
 def test_run_calls_chat_fn_on_sunday(monkeypatch):
     """Sunday (weekday=6) invokes chat_fn and returns its output."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -695,7 +695,7 @@ def test_run_calls_chat_fn_on_sunday(monkeypatch):
 
 def test_tuesday_prompt_uses_midweek_framing():
     """The prompt sent on Tuesday includes the Tuesday headline + framing."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -720,7 +720,7 @@ def test_tuesday_prompt_uses_midweek_framing():
 
 def test_sunday_prompt_uses_sunday_framing():
     """The prompt sent on Sunday includes the Sunday headline + framing."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -744,7 +744,7 @@ def test_sunday_prompt_uses_sunday_framing():
 def test_glossary_block_appears_in_prompt():
     """When findings contain metrics with glossary entries, the prompt
     embeds the glossary block."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -768,7 +768,7 @@ def test_glossary_block_appears_in_prompt():
 def test_sparse_journal_uses_fallback_directive():
     """When fewer than 2 journal entries are available in the 7-day window,
     the prompt directs the model to acknowledge the thin sample."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -806,7 +806,7 @@ def test_sparse_journal_uses_fallback_directive():
 def test_no_journal_entries_uses_empty_directive():
     """When no entries are available at all, the prompt acknowledges
     that no inner-state analysis is possible."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -827,7 +827,7 @@ def test_no_journal_entries_uses_empty_directive():
 
 def test_run_returns_none_when_chat_returns_empty_string(monkeypatch):
     """An empty chat response yields None (no message dispatched)."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -842,10 +842,10 @@ def test_run_returns_none_when_chat_returns_empty_string(monkeypatch):
 def test_run_returns_none_when_chat_raises(monkeypatch, caplog):
     """If chat_fn raises, run() logs and returns None (caller treats as
     skipped fire, not a crash)."""
-    from jarvis.agents._health import jarvis_api_client, weekly_digest
+    from screddy.agents._health import screddy_api_client, weekly_digest
 
     def raising_chat(*_args, **_kwargs):
-        raise jarvis_api_client.JarvisApiError("simulated")
+        raise screddy_api_client.ScreddyApiError("simulated")
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -861,7 +861,7 @@ def test_run_returns_none_when_chat_raises(monkeypatch, caplog):
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/_health/test_weekly_digest.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/_health/test_weekly_digest.py -v
 ```
 Expected: 9 failures — most will be `TypeError` (current `run()` signature doesn't accept `chat_fn` / `load_journal`) or the day gate rejecting Tuesday.
 
@@ -869,10 +869,10 @@ Expected: 9 failures — most will be `TypeError` (current `run()` signature doe
 
 - [ ] **Step 3.4: Replace `weekly_digest.py` with the new implementation**
 
-Replace the entire contents of `src/jarvis/agents/_health/weekly_digest.py` with:
+Replace the entire contents of `src/screddy/agents/_health/weekly_digest.py` with:
 
 ```python
-"""Twice-weekly Jarvis health digest engine.
+"""Twice-weekly Screddy health digest engine.
 
 Fires on Tuesday (midweek check-in) and Sunday (week wrap). Reads:
   - The past 30 days of JSONL audit-log entries from health_monitor
@@ -881,7 +881,7 @@ Fires on Tuesday (midweek check-in) and Sunday (week wrap). Reads:
   - A metric glossary so the generated narrative defines what each
     cited number means
 
-Generation is routed through Jarvis's own /chat API (openclaw jarvis
+Generation is routed through Screddy's own /chat API (openclaw screddy
 agent, GPT-5.4) — the function takes a `chat_fn` callable so tests can
 substitute a stub.
 
@@ -894,8 +894,8 @@ import json
 import logging
 from typing import Callable, Optional
 
-from jarvis import brain
-from jarvis.agents._health import glossary, jarvis_api_client
+from screddy import brain
+from screddy.agents._health import glossary, screddy_api_client
 
 logger = logging.getLogger(__name__)
 
@@ -922,7 +922,7 @@ def run(
     prior_30d_jsonl: list[dict],
     todays_findings: dict,
     today_weekday: int,
-    chat_fn: ChatFn = jarvis_api_client.chat,
+    chat_fn: ChatFn = screddy_api_client.chat,
     load_journal: LoadJournalFn = _default_load_journal,
 ) -> Optional[str]:
     """Render the twice-weekly digest message.
@@ -1039,7 +1039,7 @@ def _build_prompt(
     journal_block, journal_directive = _format_journal_block(journal_entries)
 
     return (
-        "You are Jarvis, Shawn's AI butler. Tone: dry, confident, addresses him as 'sir', "
+        "You are Screddy, Shawn's AI butler. Tone: dry, confident, addresses him as 'sir', "
         "no filler, no hedging. You have read his Apple Health data AND his recent "
         "journal entries for the past 7 days, and you are about to deliver his "
         f"{'Tuesday midweek check-in' if today_weekday == TUESDAY else 'Sunday briefing'}. "
@@ -1122,7 +1122,7 @@ def _format_journal_block(entries: list[dict]) -> tuple[str, str]:
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/_health/test_weekly_digest.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/_health/test_weekly_digest.py -v
 ```
 Expected: 9 passed.
 
@@ -1130,9 +1130,9 @@ Expected: 9 passed.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add \
-  src/jarvis/agents/_health/weekly_digest.py \
-  tests/jarvis/agents/_health/test_weekly_digest.py && \
+cd ~/projects/Screddyice/screddy && git add \
+  src/screddy/agents/_health/weekly_digest.py \
+  tests/screddy/agents/_health/test_weekly_digest.py && \
 git commit -m "$(cat <<'EOF'
 feat(health): generalize retrospective → weekly_digest (Tue+Sun gate)
 
@@ -1144,9 +1144,9 @@ feat(health): generalize retrospective → weekly_digest (Tue+Sun gate)
 - Inject metric glossary block so generated narrative defines cited
   values inline
 - Replace direct OpenAI client injection with chat_fn + load_journal
-  callables (default to jarvis_api_client.chat + brain helper); tests
+  callables (default to screddy_api_client.chat + brain helper); tests
   pass stubs in
-- Swallow chat-call exceptions in run() so a Jarvis API hiccup yields
+- Swallow chat-call exceptions in run() so a Screddy API hiccup yields
   None (skipped fire) rather than crashing the caller
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
@@ -1159,14 +1159,14 @@ EOF
 ## Task 4: Create `agents/health_digest.py` entry point
 
 **Files:**
-- Create: `src/jarvis/agents/health_digest.py`
-- Test: `tests/jarvis/agents/test_health_digest.py`
+- Create: `src/screddy/agents/health_digest.py`
+- Test: `tests/screddy/agents/test_health_digest.py`
 
 ### Step 4.1: Write the failing tests
 
 - [ ] **Step 4.1: Write the failing tests**
 
-Create `tests/jarvis/agents/test_health_digest.py`:
+Create `tests/screddy/agents/test_health_digest.py`:
 
 ```python
 """Integration tests for the health_digest entry point (Tue 12:00 + Sun 16:00 PT)."""
@@ -1177,7 +1177,7 @@ import json
 
 def test_main_delivers_telegram_on_tuesday(tmp_path, monkeypatch):
     """Tuesday run with a populated JSONL log dispatches a Telegram message."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({
@@ -1209,7 +1209,7 @@ def test_main_delivers_telegram_on_tuesday(tmp_path, monkeypatch):
 
 def test_main_returns_zero_on_non_digest_day(tmp_path, monkeypatch):
     """When weekday is not Tue/Sun, exit 0 and send nothing."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({"_run_at": "2026-05-20T18:00:00Z"}) + "\n")
@@ -1226,7 +1226,7 @@ def test_main_returns_zero_on_non_digest_day(tmp_path, monkeypatch):
 
 def test_main_handles_empty_jsonl(tmp_path, monkeypatch):
     """Empty JSONL on a digest day still dispatches a short notice."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"  # never written
     monkeypatch.setattr(hd, "JSONL_LOG_PATH", log_path)
@@ -1246,7 +1246,7 @@ def test_main_handles_empty_jsonl(tmp_path, monkeypatch):
 
 def test_main_returns_one_when_telegram_fails(tmp_path, monkeypatch):
     """Telegram delivery failure surfaces as exit 1."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({"_run_at": "2026-05-19T18:00:00Z"}) + "\n")
@@ -1262,7 +1262,7 @@ def test_main_returns_one_when_telegram_fails(tmp_path, monkeypatch):
 def test_main_sends_fallback_when_chat_returns_none(tmp_path, monkeypatch):
     """When weekly_digest.run() returns None on a digest day (chat failed
     or empty response), send a short fallback Telegram so the user knows."""
-    from jarvis.agents import health_digest as hd
+    from screddy.agents import health_digest as hd
 
     log_path = tmp_path / "health-monitor.jsonl"
     log_path.write_text(json.dumps({"_run_at": "2026-05-19T18:00:00Z"}) + "\n")
@@ -1283,26 +1283,26 @@ def test_main_sends_fallback_when_chat_returns_none(tmp_path, monkeypatch):
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/test_health_digest.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/test_health_digest.py -v
 ```
-Expected: 5 errors (`ModuleNotFoundError: No module named 'jarvis.agents.health_digest'`).
+Expected: 5 errors (`ModuleNotFoundError: No module named 'screddy.agents.health_digest'`).
 
 ### Step 4.3: Implement the entry point
 
 - [ ] **Step 4.3: Create `health_digest.py`**
 
-Create `src/jarvis/agents/health_digest.py`:
+Create `src/screddy/agents/health_digest.py`:
 
 ```python
 """health_digest — twice-weekly narrative briefing entry point.
 
 Fires Tue 12:00 PT and Sun 16:00 PT via systemd timer health-digest.timer.
 Reads the existing JSONL audit log + the past week of mental-health journal
-entries, routes generation through Jarvis's /chat API (openclaw jarvis
+entries, routes generation through Screddy's /chat API (openclaw screddy
 agent, GPT-5.4), and delivers the result to Telegram.
 
 Daily silent analysis (analyse → JSONL → brain write → emergency
-edge-trigger) is owned by jarvis.agents.health_monitor and runs on its
+edge-trigger) is owned by screddy.agents.health_monitor and runs on its
 own timer. This module does NOT call analyse(); it consumes whatever the
 daily watchdog has already written.
 """
@@ -1314,8 +1314,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from jarvis.agents._health import weekly_digest
-from jarvis.channels import telegram_notify
+from screddy.agents._health import weekly_digest
+from screddy.channels import telegram_notify
 
 logger = logging.getLogger(__name__)
 
@@ -1375,7 +1375,7 @@ def main() -> int:
         # The engine returned None — either chat failed or returned empty.
         # Surface this to the user rather than going silent.
         fallback = (
-            "_Digest skipped, sir — Jarvis didn't respond. "
+            "_Digest skipped, sir — Screddy didn't respond. "
             "Will retry on next scheduled fire._\n\n" + DISCLAIMER
         )
         ok = telegram_notify.send(fallback)
@@ -1394,7 +1394,7 @@ if __name__ == "__main__":
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/test_health_digest.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/test_health_digest.py -v
 ```
 Expected: 5 passed.
 
@@ -1402,13 +1402,13 @@ Expected: 5 passed.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add \
-  src/jarvis/agents/health_digest.py \
-  tests/jarvis/agents/test_health_digest.py && \
+cd ~/projects/Screddyice/screddy && git add \
+  src/screddy/agents/health_digest.py \
+  tests/screddy/agents/test_health_digest.py && \
 git commit -m "$(cat <<'EOF'
 feat(health): add health_digest entry point for Tue+Sun delivery
 
-New jarvis.agents.health_digest module is the systemd-invoked entry
+New screddy.agents.health_digest module is the systemd-invoked entry
 point for the twice-weekly digest. Reads the JSONL log, defers to
 weekly_digest.run() for narrative generation, dispatches via
 telegram_notify. Handles three off-nominal cases explicitly:
@@ -1428,8 +1428,8 @@ EOF
 ## Task 5: Strip the Sunday retrospective block from `health_monitor.py`
 
 **Files:**
-- Modify: `src/jarvis/agents/health_monitor.py`
-- Modify: `tests/jarvis/agents/test_health_monitor.py` (verify no breakage)
+- Modify: `src/screddy/agents/health_monitor.py`
+- Modify: `tests/screddy/agents/test_health_monitor.py` (verify no breakage)
 
 The retrospective lives in `health_digest.py` now. The daily watchdog should *only* do analysis + emergency edge-trigger.
 
@@ -1437,21 +1437,21 @@ The retrospective lives in `health_digest.py` now. The daily watchdog should *on
 
 - [ ] **Step 5.1: Remove the retrospective import**
 
-In `src/jarvis/agents/health_monitor.py`, change line 18:
+In `src/screddy/agents/health_monitor.py`, change line 18:
 
 **Old:**
 ```python
-from jarvis.agents._health import data_state, metric_fetch, patterns, retrospective
+from screddy.agents._health import data_state, metric_fetch, patterns, retrospective
 ```
 
 **New:**
 ```python
-from jarvis.agents._health import data_state, metric_fetch, patterns
+from screddy.agents._health import data_state, metric_fetch, patterns
 ```
 
 - [ ] **Step 5.2: Remove the Sunday retrospective block**
 
-In `src/jarvis/agents/health_monitor.py`, find this block (currently around lines 389-402):
+In `src/screddy/agents/health_monitor.py`, find this block (currently around lines 389-402):
 
 **Old:**
 ```python
@@ -1526,7 +1526,7 @@ In the same file, find the deliver block (currently around lines 414-431). The `
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/test_health_monitor.py -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/test_health_monitor.py -v
 ```
 Expected: 3 passed (the three existing tests don't depend on the retrospective block; the came-back / anti-spam / analyse-failure paths all return before the deleted code or after it without touching it).
 
@@ -1536,11 +1536,11 @@ If any test fails because of a reference to `retrospective` it didn't exist befo
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add src/jarvis/agents/health_monitor.py && \
+cd ~/projects/Screddyice/screddy && git add src/screddy/agents/health_monitor.py && \
 git commit -m "$(cat <<'EOF'
 refactor(health): move Sunday retrospective out of health_monitor
 
-The retrospective / digest path now lives in jarvis.agents.health_digest,
+The retrospective / digest path now lives in screddy.agents.health_digest,
 invoked by its own systemd timer twice a week. The daily watchdog
 (health_monitor) is responsible only for the silent analysis →
 JSONL → brain write → emergency edge-trigger chain. Remove the
@@ -1557,7 +1557,7 @@ EOF
 ## Task 6: Delete `agents/emergency_check.py`
 
 **Files:**
-- Delete: `src/jarvis/agents/emergency_check.py`
+- Delete: `src/screddy/agents/emergency_check.py`
 
 With the 3h timer collapsed into the daily 11:00 PT run, `emergency_check.py` has no caller.
 
@@ -1565,22 +1565,22 @@ With the 3h timer collapsed into the daily 11:00 PT run, `emergency_check.py` ha
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && grep -rn "emergency_check" src/ tests/ deploy/ 2>/dev/null | grep -v __pycache__ | grep -v ".pyc"
+cd ~/projects/Screddyice/screddy && grep -rn "emergency_check" src/ tests/ deploy/ 2>/dev/null | grep -v __pycache__ | grep -v ".pyc"
 ```
-Expected: only matches inside `src/jarvis/agents/emergency_check.py` itself (and possibly its own docstring). If anything else references it (test file, import elsewhere), STOP and investigate before deleting.
+Expected: only matches inside `src/screddy/agents/emergency_check.py` itself (and possibly its own docstring). If anything else references it (test file, import elsewhere), STOP and investigate before deleting.
 
 - [ ] **Step 6.2: Delete the file**
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git rm src/jarvis/agents/emergency_check.py
+cd ~/projects/Screddyice/screddy && git rm src/screddy/agents/emergency_check.py
 ```
 
 - [ ] **Step 6.3: Commit**
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git commit -m "$(cat <<'EOF'
+cd ~/projects/Screddyice/screddy && git commit -m "$(cat <<'EOF'
 refactor(health): remove emergency_check (folded into daily watchdog)
 
 The every-3h emergency_check existed because the watchdog only ran
@@ -1606,7 +1606,7 @@ Replace `deploy/neb/systemd/health-monitor.timer` with:
 
 ```ini
 [Unit]
-Description=Daily Jarvis health watchdog — Apple Health analysis + emergency edge-trigger
+Description=Daily Screddy health watchdog — Apple Health analysis + emergency edge-trigger
 Requires=health-monitor.service
 
 [Timer]
@@ -1627,12 +1627,12 @@ In `deploy/neb/systemd/health-monitor.service`, change line 2:
 
 **Old:**
 ```
-Description=Jarvis health monitor — daily anomaly check on Apple Health data
+Description=Screddy health monitor — daily anomaly check on Apple Health data
 ```
 
 **New:**
 ```
-Description=Jarvis health watchdog — daily Apple Health analysis + emergency edge-trigger
+Description=Screddy health watchdog — daily Apple Health analysis + emergency edge-trigger
 ```
 
 (Cosmetic. Skip if it errors for any reason — the service body is what matters.)
@@ -1641,7 +1641,7 @@ Description=Jarvis health watchdog — daily Apple Health analysis + emergency e
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add \
+cd ~/projects/Screddyice/screddy && git add \
   deploy/neb/systemd/health-monitor.timer \
   deploy/neb/systemd/health-monitor.service && \
 git commit -m "$(cat <<'EOF'
@@ -1672,15 +1672,15 @@ Create `deploy/neb/systemd/health-digest.service`:
 
 ```ini
 [Unit]
-Description=Jarvis health digest — twice-weekly narrative briefing via Jarvis /chat
-After=network.target jarvis-api.service
-Requires=jarvis-api.service
+Description=Screddy health digest — twice-weekly narrative briefing via Screddy /chat
+After=network.target screddy-api.service
+Requires=screddy-api.service
 
 [Service]
 Type=oneshot
-EnvironmentFile=/home/ubuntu/jarvis/config/jarvis.env
-WorkingDirectory=/home/ubuntu/jarvis/vendor/openjarvis
-ExecStart=/home/ubuntu/.local/bin/uv run python -m jarvis.agents.health_digest
+EnvironmentFile=/home/ubuntu/screddy/config/screddy.env
+WorkingDirectory=/home/ubuntu/screddy/vendor/openscreddy
+ExecStart=/home/ubuntu/.local/bin/uv run python -m screddy.agents.health_digest
 StandardOutput=append:/home/ubuntu/logs/health-digest.log
 StandardError=append:/home/ubuntu/logs/health-digest.log
 
@@ -1694,7 +1694,7 @@ Create `deploy/neb/systemd/health-digest.timer`:
 
 ```ini
 [Unit]
-Description=Twice-weekly Jarvis health digest — Tue 12:00 + Sun 16:00 PT
+Description=Twice-weekly Screddy health digest — Tue 12:00 + Sun 16:00 PT
 Requires=health-digest.service
 
 [Timer]
@@ -1710,14 +1710,14 @@ WantedBy=timers.target
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git add \
+cd ~/projects/Screddyice/screddy && git add \
   deploy/neb/systemd/health-digest.service \
   deploy/neb/systemd/health-digest.timer && \
 git commit -m "$(cat <<'EOF'
 chore(deploy): add health-digest systemd unit (Tue 12:00 + Sun 16:00 PT)
 
-New oneshot service runs `python -m jarvis.agents.health_digest` twice
-weekly. Requires=jarvis-api.service ensures the local /chat endpoint
+New oneshot service runs `python -m screddy.agents.health_digest` twice
+weekly. Requires=screddy-api.service ensures the local /chat endpoint
 is up before the digest tries to call it. Logs to
 ~/logs/health-digest.log on neb-server.
 
@@ -1738,7 +1738,7 @@ EOF
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git rm \
+cd ~/projects/Screddyice/screddy && git rm \
   deploy/neb/systemd/health-emergency-check.service \
   deploy/neb/systemd/health-emergency-check.timer
 ```
@@ -1747,7 +1747,7 @@ cd ~/projects/Screddyice/jarvis && git rm \
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git commit -m "$(cat <<'EOF'
+cd ~/projects/Screddyice/screddy && git commit -m "$(cat <<'EOF'
 chore(deploy): remove health-emergency-check systemd units
 
 Apple Health data refreshes once per day in the morning. The every-3h
@@ -1772,17 +1772,17 @@ EOF
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && uv run pytest tests/jarvis/agents/ -v
+cd ~/projects/Screddyice/screddy && uv run pytest tests/screddy/agents/ -v
 ```
 Expected: all green. New tests:
-- `tests/jarvis/agents/_health/test_glossary.py` (4 tests)
-- `tests/jarvis/agents/_health/test_jarvis_api_client.py` (5 tests)
-- `tests/jarvis/agents/_health/test_weekly_digest.py` (9 tests)
-- `tests/jarvis/agents/test_health_digest.py` (5 tests)
+- `tests/screddy/agents/_health/test_glossary.py` (4 tests)
+- `tests/screddy/agents/_health/test_screddy_api_client.py` (5 tests)
+- `tests/screddy/agents/_health/test_weekly_digest.py` (9 tests)
+- `tests/screddy/agents/test_health_digest.py` (5 tests)
 
 Existing tests:
-- `tests/jarvis/agents/test_health_monitor.py` (3 tests)
-- `tests/jarvis/agents/test_pipeline_watchdog.py` (existing — should be unaffected)
+- `tests/screddy/agents/test_health_monitor.py` (3 tests)
+- `tests/screddy/agents/test_pipeline_watchdog.py` (existing — should be unaffected)
 
 Total new: 23. Combined with existing tests: should be ~26+.
 
@@ -1792,13 +1792,13 @@ If anything fails, stop and fix it before moving on — no shipping a red suite.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && grep -rn "retrospective" src/ tests/ deploy/ 2>/dev/null | grep -v __pycache__
+cd ~/projects/Screddyice/screddy && grep -rn "retrospective" src/ tests/ deploy/ 2>/dev/null | grep -v __pycache__
 ```
 Expected: NO matches. If any remain, replace with `weekly_digest`.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && grep -rn "emergency_check" src/ tests/ deploy/ 2>/dev/null | grep -v __pycache__
+cd ~/projects/Screddyice/screddy && grep -rn "emergency_check" src/ tests/ deploy/ 2>/dev/null | grep -v __pycache__
 ```
 Expected: NO matches.
 
@@ -1806,7 +1806,7 @@ Expected: NO matches.
 
 Run:
 ```bash
-cd ~/projects/Screddyice/jarvis && git push -u origin feat/be-health-digest-v3-2
+cd ~/projects/Screddyice/screddy && git push -u origin feat/be-health-digest-v3-2
 ```
 Expected: branch pushed, no errors.
 
@@ -1825,7 +1825,7 @@ This task does NOT commit to git. It's the post-merge deploy. Run after the PR i
 
 Run:
 ```bash
-ssh neb-server 'cd ~/jarvis && git pull && /home/ubuntu/.local/bin/uv sync'
+ssh neb-server 'cd ~/screddy && git pull && /home/ubuntu/.local/bin/uv sync'
 ```
 Expected: clean pull, `uv sync` reports either "no changes" or a small dep resolution.
 
@@ -1855,11 +1855,11 @@ Expected: silent success.
 
 Run:
 ```bash
-ssh neb-server 'cp ~/jarvis/vendor/openjarvis/deploy/neb/systemd/health-monitor.timer ~/.config/systemd/user/; cp ~/jarvis/vendor/openjarvis/deploy/neb/systemd/health-monitor.service ~/.config/systemd/user/; cp ~/jarvis/vendor/openjarvis/deploy/neb/systemd/health-digest.timer ~/.config/systemd/user/; cp ~/jarvis/vendor/openjarvis/deploy/neb/systemd/health-digest.service ~/.config/systemd/user/'
+ssh neb-server 'cp ~/screddy/vendor/openscreddy/deploy/neb/systemd/health-monitor.timer ~/.config/systemd/user/; cp ~/screddy/vendor/openscreddy/deploy/neb/systemd/health-monitor.service ~/.config/systemd/user/; cp ~/screddy/vendor/openscreddy/deploy/neb/systemd/health-digest.timer ~/.config/systemd/user/; cp ~/screddy/vendor/openscreddy/deploy/neb/systemd/health-digest.service ~/.config/systemd/user/'
 ```
 Expected: 4 file copies succeed silently.
 
-> **If the vendor path differs:** the deploy paths in this plan assume the live install lives at `/home/ubuntu/jarvis/vendor/openjarvis/`. If neb-server uses a different install layout, replace the source paths with the actual repo location (`git -C ~/jarvis remote -v` will show whether the repo IS the install or whether the install is vendored).
+> **If the vendor path differs:** the deploy paths in this plan assume the live install lives at `/home/ubuntu/screddy/vendor/openscreddy/`. If neb-server uses a different install layout, replace the source paths with the actual repo location (`git -C ~/screddy remote -v` will show whether the repo IS the install or whether the install is vendored).
 
 ### Step 11.5: Reload + enable
 
@@ -1877,7 +1877,7 @@ Expected: `health-digest.timer` enabled + active; `health-monitor.timer` restart
 
 Run:
 ```bash
-ssh neb-server 'systemctl --user list-timers --all | grep -E "health|jarvis"'
+ssh neb-server 'systemctl --user list-timers --all | grep -E "health|screddy"'
 ```
 Expected output should include:
 - `health-monitor.timer` with next fire at the next 11:00 PT (in UTC, that's 18:00 or 19:00 depending on DST)
@@ -1902,10 +1902,10 @@ Expected: clean execution, no traceback. Telegram should deliver a digest (or a 
 If today is NOT Tue or Sun, the entry point exits 0 silently. To smoke-test the full flow anyway, you can temporarily override the day check in the running module by running a one-shot:
 
 ```bash
-ssh neb-server 'cd ~/jarvis/vendor/openjarvis && /home/ubuntu/.local/bin/uv run python -c "
-from jarvis.agents._health import weekly_digest, jarvis_api_client
-from jarvis import brain
-from jarvis.channels import telegram_notify
+ssh neb-server 'cd ~/screddy/vendor/openscreddy && /home/ubuntu/.local/bin/uv run python -c "
+from screddy.agents._health import weekly_digest, screddy_api_client
+from screddy import brain
+from screddy.channels import telegram_notify
 
 # Simulate Tuesday
 out = weekly_digest.run(
@@ -1916,7 +1916,7 @@ out = weekly_digest.run(
 print(out)
 "'
 ```
-Expected: a Telegram-formatted digest string printed to stdout (no actual Telegram send), or a clear stack trace if the Jarvis API isn't reachable.
+Expected: a Telegram-formatted digest string printed to stdout (no actual Telegram send), or a clear stack trace if the Screddy API isn't reachable.
 
 ### Step 11.8: Confirm health-monitor still fires nightly
 

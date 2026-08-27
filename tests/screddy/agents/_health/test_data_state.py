@@ -14,14 +14,14 @@ def _findings(rhr_stale=False, hrv_stale=False, sleep_stale=False, **rest):
 
 
 def test_classify_watch_on_when_rhr_and_hrv_fresh():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(_findings(), prior_jsonl=[])
     assert state["current"] == "watch_on"
 
 
 def test_classify_watch_off_when_all_three_stale():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(
         _findings(rhr_stale=True, hrv_stale=True, sleep_stale=True),
@@ -31,14 +31,14 @@ def test_classify_watch_off_when_all_three_stale():
 
 
 def test_classify_partial_when_only_sleep_stale():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(_findings(sleep_stale=True), prior_jsonl=[])
     assert state["current"] == "partial"
 
 
 def test_classify_partial_when_rhr_stale_but_hrv_fresh():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(_findings(rhr_stale=True), prior_jsonl=[])
     assert state["current"] == "partial"
@@ -49,14 +49,14 @@ def _prior_entry(state: str) -> dict:
 
 
 def test_transition_none_when_state_unchanged():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(_findings(), prior_jsonl=[_prior_entry("watch_on")])
     assert state["transition"] == "none"
 
 
 def test_transition_went_off():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(
         _findings(rhr_stale=True, hrv_stale=True, sleep_stale=True),
@@ -66,7 +66,7 @@ def test_transition_went_off():
 
 
 def test_transition_came_back():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(
         _findings(),
@@ -76,7 +76,7 @@ def test_transition_came_back():
 
 
 def test_gap_days_counts_consecutive_watch_off():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     # 3 prior days of watch_off, then today is also watch_off
     prior = [_prior_entry("watch_off")] * 3
@@ -88,7 +88,7 @@ def test_gap_days_counts_consecutive_watch_off():
 
 
 def test_days_since_resume_counts_up_after_came_back():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     # Yesterday was came_back (transition recorded); today watch_on continues
     prior = [{"_data_state": {"current": "watch_on", "transition": "came_back", "days_since_resume": 0}}]
@@ -97,7 +97,7 @@ def test_days_since_resume_counts_up_after_came_back():
 
 
 def test_days_since_resume_resets_on_came_back():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(_findings(), prior_jsonl=[_prior_entry("watch_off")])
     assert state["transition"] == "came_back"
@@ -105,14 +105,14 @@ def test_days_since_resume_resets_on_came_back():
 
 
 def test_gap_days_zero_when_watch_on():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     state = ds.classify(_findings(), prior_jsonl=[_prior_entry("watch_on")])
     assert state["gap_days"] == 0
 
 
 def test_gap_day_set_from_jsonl_history():
-    from jarvis.agents._health import data_state as ds
+    from screddy.agents._health import data_state as ds
 
     prior = [
         {"_run_at": "2026-05-05T12:00:00Z", "_data_state": {"current": "watch_on"}},

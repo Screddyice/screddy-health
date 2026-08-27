@@ -286,7 +286,7 @@ def detect_recovery_score_drop(findings: dict) -> dict | None:
     fires moderate at <= -1.0 SD and high at <= -1.5 SD.
 
     Distinct from low_recovery (HRV+RHR only) because it folds in sleep — the
-    most actionable lever — and gives a quantitative score Jarvis can
+    most actionable lever — and gives a quantitative score Screddy can
     reference in retros.
     """
     hrv_z = _z(findings, "heart_rate_variability")

@@ -120,7 +120,7 @@ wheels = [
 ]
 
 [[package]]
-name = "jarvis-health"
+name = "screddy-health"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

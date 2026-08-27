@@ -53,8 +53,8 @@ def send(text: str, *, chat_id: Optional[str] = None, parse_mode: str = "Markdow
 
 
 if __name__ == "__main__":
-    # Quick sanity: python -m jarvis.channels.telegram_notify "hello"
+    # Quick sanity: python -m screddy.channels.telegram_notify "hello"
     import sys
 
-    ok = send(sys.argv[1] if len(sys.argv) > 1 else "Jarvis telegram_notify smoke test")
+    ok = send(sys.argv[1] if len(sys.argv) > 1 else "Screddy telegram_notify smoke test")
     print("sent" if ok else "failed")

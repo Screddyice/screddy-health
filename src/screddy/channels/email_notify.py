@@ -1,8 +1,8 @@
 """Email one-shot send helper for agents.
 
-Wraps Composio's GMAIL_SEND_EMAIL action. Jarvis-self-contained — reads
+Wraps Composio's GMAIL_SEND_EMAIL action. Screddy-self-contained — reads
 credentials from the environment (loaded by systemd from
-~/jarvis/config/jarvis.env). Does NOT read from ~/.openclaw/ or any
+~/screddy/config/screddy.env). Does NOT read from ~/.openclaw/ or any
 other runtime's state.
 
 Env vars required:
@@ -28,7 +28,7 @@ def send(*, to: str, subject: str, body: str) -> bool:
     if not api_key or not user_id:
         logger.error(
             "COMPOSIO_API_KEY or COMPOSIO_USER_ID not set — add them to "
-            "~/jarvis/config/jarvis.env so the systemd service can load them"
+            "~/screddy/config/screddy.env so the systemd service can load them"
         )
         return False
     if not to:

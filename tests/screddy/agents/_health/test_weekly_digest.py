@@ -5,7 +5,7 @@ Replaces the prior Sunday-only retrospective tests with coverage for:
   - Distinct Tue vs Sun framing line
   - Glossary block injection
   - Sparse-journal fallback
-  - Jarvis client integration (injected callable, mocked)
+  - Screddy client integration (injected callable, mocked)
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _make_fake_findings():
 
 def test_run_returns_none_on_non_digest_day(monkeypatch):
     """Day gate accepts Tue=1 and Sun=6 only. Wednesday (2) returns None."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -48,7 +48,7 @@ def test_run_returns_none_on_non_digest_day(monkeypatch):
 
 def test_run_calls_chat_fn_on_tuesday(monkeypatch):
     """Tuesday (weekday=1) invokes chat_fn and returns its output."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -69,7 +69,7 @@ def test_run_calls_chat_fn_on_tuesday(monkeypatch):
 
 def test_run_calls_chat_fn_on_sunday(monkeypatch):
     """Sunday (weekday=6) invokes chat_fn and returns its output."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -84,7 +84,7 @@ def test_run_calls_chat_fn_on_sunday(monkeypatch):
 
 def test_tuesday_prompt_uses_midweek_framing():
     """The prompt sent on Tuesday includes the Tuesday headline + framing."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -109,7 +109,7 @@ def test_tuesday_prompt_uses_midweek_framing():
 
 def test_sunday_prompt_uses_sunday_framing():
     """The prompt sent on Sunday includes the Sunday headline + framing."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -133,7 +133,7 @@ def test_sunday_prompt_uses_sunday_framing():
 def test_glossary_block_appears_in_prompt():
     """When findings contain metrics with glossary entries, the prompt
     embeds the glossary block."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -157,7 +157,7 @@ def test_glossary_block_appears_in_prompt():
 def test_sparse_journal_uses_fallback_directive():
     """When fewer than 2 journal entries are available in the 7-day window,
     the prompt directs the model to acknowledge the thin sample."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -195,7 +195,7 @@ def test_sparse_journal_uses_fallback_directive():
 def test_no_journal_entries_uses_empty_directive():
     """When no entries are available at all, the prompt acknowledges
     that no inner-state analysis is possible."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -216,7 +216,7 @@ def test_no_journal_entries_uses_empty_directive():
 
 def test_run_returns_none_when_chat_returns_empty_string(monkeypatch):
     """An empty chat response yields None (no message dispatched)."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -231,10 +231,10 @@ def test_run_returns_none_when_chat_returns_empty_string(monkeypatch):
 def test_run_returns_none_when_chat_raises(monkeypatch, caplog):
     """If chat_fn raises, run() logs and returns None (caller treats as
     skipped fire, not a crash)."""
-    from jarvis.agents._health import jarvis_api_client, weekly_digest
+    from screddy.agents._health import screddy_api_client, weekly_digest
 
     def raising_chat(*_args, **_kwargs):
-        raise jarvis_api_client.JarvisApiError("simulated")
+        raise screddy_api_client.ScreddyApiError("simulated")
 
     out = weekly_digest.run(
         prior_30d_jsonl=[],
@@ -287,7 +287,7 @@ def _watch_off_findings() -> dict:
 
 def test_prompt_lists_fresh_metrics_under_available():
     """The Data availability block lists every fresh metric under Available."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -320,7 +320,7 @@ def test_prompt_lists_fresh_metrics_under_available():
 def test_prompt_lists_stale_metrics_under_unavailable():
     """The Data availability block lists every stale metric under Unavailable
     so the LLM knows what to skip."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -350,7 +350,7 @@ def test_prompt_lists_stale_metrics_under_unavailable():
 def test_prompt_includes_watch_off_acknowledgment_instruction():
     """The prompt instructs the LLM to acknowledge watch-off at the start of
     Last week, not skip the digest."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -376,7 +376,7 @@ def test_prompt_includes_watch_off_acknowledgment_instruction():
 def test_today_signal_only_contains_fresh_metrics():
     """The today_signal JSON block embedded in the prompt should only
     serialize fresh metrics — no zeroed-out stale data."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 
@@ -407,7 +407,7 @@ def test_today_signal_only_contains_fresh_metrics():
 def test_glossary_block_only_documents_fresh_metrics_on_watch_off():
     """When the watch is off, the glossary block should document only the
     phone-derived metrics that are actually fresh."""
-    from jarvis.agents._health import weekly_digest
+    from screddy.agents._health import weekly_digest
 
     captured: dict = {}
 

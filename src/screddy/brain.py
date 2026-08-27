@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def database_url() -> Optional[str]:
-    """DATABASE_URL from env. Sourced via systemd from jarvis.env."""
+    """DATABASE_URL from env. Sourced via systemd from screddy.env."""
     return os.environ.get("DATABASE_URL")
 
 

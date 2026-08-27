@@ -1,4 +1,4 @@
-"""pipeline_watchdog — daily health check of NEB infrastructure Jarvis depends on.
+"""pipeline_watchdog — daily health check of NEB infrastructure Screddy depends on.
 
 v2: per-metric HAE freshness with watch-off awareness. The v1 single-check
 "any rows in 25h" used wrong query params (from/to instead of start/end)
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import httpx
 
-from jarvis.agents._health.metric_fetch import METRIC_REGISTRY
-from jarvis.channels import telegram_notify
+from screddy.agents._health.metric_fetch import METRIC_REGISTRY
+from screddy.channels import telegram_notify
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def check_hae_containers() -> list[str]:
 
 
 def _load_hae_config() -> dict:
-    path = Path.home() / ".openjarvis" / "connectors" / "apple_health_remote.json"
+    path = Path.home() / ".openscreddy" / "connectors" / "apple_health_remote.json"
     return json.loads(path.read_text())
 
 

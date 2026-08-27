@@ -1,10 +1,10 @@
 [Unit]
-Description=Run the Apple Health watchdog daily (default: 11:00 in JARVIS_HEALTH_TZ)
+Description=Run the Apple Health watchdog daily (default: 11:00 in SCREDDY_HEALTH_TZ)
 Requires=health-monitor.service
 
 [Timer]
 # Daily after Apple Health's morning sync settles. Adjust the timezone to
-# match your JARVIS_HEALTH_TZ env var. Using a named timezone (not UTC)
+# match your SCREDDY_HEALTH_TZ env var. Using a named timezone (not UTC)
 # means systemd handles DST shifts so the local clock-time stays constant.
 OnCalendar=*-*-* 11:00:00 America/Los_Angeles
 Persistent=true

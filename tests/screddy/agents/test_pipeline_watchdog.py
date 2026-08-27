@@ -12,7 +12,7 @@ def _hae_url(metric: str) -> str:
 def test_check_hae_freshness_uses_start_end_not_from_to(tmp_path, monkeypatch):
     import respx
     from httpx import Response
-    from jarvis.agents import pipeline_watchdog as pw
+    from screddy.agents import pipeline_watchdog as pw
 
     cfg_path = tmp_path / "apple_health_remote.json"
     cfg_path.write_text(json.dumps({"base_url": "https://hae.example.test", "read_token": "tok"}))
@@ -45,7 +45,7 @@ def test_check_hae_freshness_suppresses_alert_during_watch_off(tmp_path, monkeyp
     """When all wrist metrics are stale together (watch_off), no alert."""
     import respx
     from httpx import Response
-    from jarvis.agents import pipeline_watchdog as pw
+    from screddy.agents import pipeline_watchdog as pw
 
     cfg_path = tmp_path / "apple_health_remote.json"
     cfg_path.write_text(json.dumps({"base_url": "https://hae.example.test", "read_token": "tok"}))
@@ -54,7 +54,7 @@ def test_check_hae_freshness_suppresses_alert_during_watch_off(tmp_path, monkeyp
     fresh_row = [{"date": datetime.now(timezone.utc).isoformat(), "qty": 1}]
     stale_row = [{"date": (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(), "qty": 1}]
 
-    from jarvis.agents._health.metric_fetch import METRIC_REGISTRY
+    from screddy.agents._health.metric_fetch import METRIC_REGISTRY
     with respx.mock:
         # Iterate the full registry so this test auto-adapts as new metrics
         # are added. iPhone-derived (watch_required=False) stay fresh;
@@ -83,7 +83,7 @@ def test_check_hae_freshness_alerts_when_iphone_metrics_stale(tmp_path, monkeypa
     """When iPhone-derived metrics are stale, that's a real pipeline failure."""
     import respx
     from httpx import Response
-    from jarvis.agents import pipeline_watchdog as pw
+    from screddy.agents import pipeline_watchdog as pw
 
     cfg_path = tmp_path / "apple_health_remote.json"
     cfg_path.write_text(json.dumps({"base_url": "https://hae.example.test", "read_token": "tok"}))
@@ -92,7 +92,7 @@ def test_check_hae_freshness_alerts_when_iphone_metrics_stale(tmp_path, monkeypa
     fresh_row = [{"date": datetime.now(timezone.utc).isoformat(), "qty": 1}]
     stale_row = [{"date": (datetime.now(timezone.utc) - timedelta(days=3)).isoformat(), "qty": 1}]
 
-    from jarvis.agents._health.metric_fetch import METRIC_REGISTRY
+    from screddy.agents._health.metric_fetch import METRIC_REGISTRY
     with respx.mock:
         # iPhone-derived metric stale (only step_count is stale among iPhone metrics)
         respx.get(_hae_url("step_count")).mock(return_value=Response(200, json=stale_row))

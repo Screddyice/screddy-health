@@ -1,4 +1,4 @@
-"""Twice-weekly Jarvis health digest engine.
+"""Twice-weekly Screddy health digest engine.
 
 Fires on Tuesday (midweek check-in) and Sunday (week wrap). Reads:
   - The past 30 days of JSONL audit-log entries from health_monitor
@@ -7,7 +7,7 @@ Fires on Tuesday (midweek check-in) and Sunday (week wrap). Reads:
   - A metric glossary so the generated narrative defines what each
     cited number means
 
-Generation is routed through Jarvis's own /chat API (openclaw jarvis
+Generation is routed through Screddy's own /chat API (openclaw screddy
 agent, GPT-5.4) — the function takes a `chat_fn` callable so tests can
 substitute a stub.
 
@@ -20,8 +20,8 @@ import json
 import logging
 from typing import Callable, Optional
 
-from jarvis import brain
-from jarvis.agents._health import glossary, jarvis_api_client
+from screddy import brain
+from screddy.agents._health import glossary, screddy_api_client
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def run(
     prior_30d_jsonl: list[dict],
     todays_findings: dict,
     today_weekday: int,
-    chat_fn: ChatFn = jarvis_api_client.chat,
+    chat_fn: ChatFn = screddy_api_client.chat,
     load_journal: LoadJournalFn = _default_load_journal,
 ) -> Optional[str]:
     """Render the twice-weekly digest message.
@@ -74,7 +74,7 @@ def run(
 
     try:
         answer = chat_fn(prompt)
-    except jarvis_api_client.JarvisApiError as exc:
+    except screddy_api_client.ScreddyApiError as exc:
         logger.error("digest chat call failed: %s", exc)
         return None
 
@@ -189,7 +189,7 @@ def _build_prompt(
     journal_block, journal_directive = _format_journal_block(journal_entries)
 
     return (
-        "You are Jarvis, Shawn's AI butler. Tone: dry, confident, addresses him as 'sir', "
+        "You are Screddy, Shawn's AI butler. Tone: dry, confident, addresses him as 'sir', "
         "no filler, no hedging. You have read his Apple Health data AND his recent "
         "journal entries for the past 7 days, and you are about to deliver his "
         f"{'Tuesday midweek check-in' if today_weekday == TUESDAY else 'Sunday briefing'}. "

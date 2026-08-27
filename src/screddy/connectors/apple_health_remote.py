@@ -1,6 +1,6 @@
 """Apple Health (remote) connector — reads from a Health Auto Export server.
 
-Config at ``~/.openjarvis/connectors/apple_health_remote.json``::
+Config at ``~/.openscreddy/connectors/apple_health_remote.json``::
 
     {"base_url": "https://<tunnel>.trycloudflare.com", "read_token": "sk-read-..."}
 
@@ -18,9 +18,9 @@ from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
+from openscreddy.connectors._stubs import BaseConnector, Document, SyncStatus
+from openscreddy.core.config import DEFAULT_CONFIG_DIR
+from openscreddy.core.registry import ConnectorRegistry
 
 _DEFAULT_CONFIG_PATH = str(
     DEFAULT_CONFIG_DIR / "connectors" / "apple_health_remote.json"
