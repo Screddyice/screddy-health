@@ -212,6 +212,15 @@ uv run pytest tests/ -v
 
 124 tests cover: pattern detector behavior for every severity tier, edge-trigger dedup state machines, prompt assembly with glossary injection, watch-off fallback path, journal sparse-data handling, HTTP client error paths, anti-spam cooldown, and end-to-end orchestrator flow.
 
+## Dependency security
+
+`uv.lock` pins `anyio` at 4.15.1 or later (with `typing-extensions` 4.16.0), which closes both open Dependabot alerts for anyio. No alerts remain open. To list open alerts:
+
+```bash
+gh api "repos/Screddyice/screddy-health/dependabot/alerts?state=open&per_page=100" --paginate \
+  --jq '.[]|[.number,.security_advisory.severity,.dependency.package.name]|@tsv'
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
